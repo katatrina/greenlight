@@ -1,4 +1,7 @@
 server:
 	go run ./cmd/api
 
-.PHONY: server
+migrateup:
+	migrate -source file://migrations -database "%GREENLIGHT_DB_DSN%" -verbose up
+
+.PHONY: server migrateup
