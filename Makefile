@@ -4,4 +4,7 @@ server:
 migrateup:
 	migrate -source file://migrations -database "%GREENLIGHT_DB_DSN%" -verbose up
 
+migratedown:
+	migrate -source file://migrations -database "%GREENLIGHT_DB_DSN%" -verbose down
+
 .PHONY: server migrateup

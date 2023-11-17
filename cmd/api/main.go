@@ -38,12 +38,17 @@ func main() {
 	// prefixed with the current date and time.
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 
+	// Initialize a new connection pool to our database.
 	db, err := openDB(config)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
+	// Defer a call to db.Close() so that the connection pool is closed before the
+	// main() function exits.
 	db.Close()
+
+	logger.Println("database connection pool established")
 
 	app := &application{
 		logger: logger,
@@ -52,7 +57,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf("localhost:%d", config.ServerPort),
-		Handler:      app.routes(),
+		Handler:      app.routes(), // app.routes() returns a router a.k.a server multiplexer.
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
@@ -65,14 +70,21 @@ func main() {
 }
 
 func openDB(config util.Config) (*sql.DB, error) {
+	// Use sql.Open() to create an empty connection pool, using the DSN from the config
+	// struct.
 	db, err := sql.Open("postgres", config.DBDsn)
 	if err != nil {
 		return nil, err
 	}
 
+	// Create a context with a 5-second timeout deadline.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Use PingContext() to establish a new connection to the database, passing in the
+	// context we created above as a parameter. If the connection couldn't be
+	// established successfully within the 5-second deadline, then this will return an
+	// error.
 	err = db.PingContext(ctx)
 	if err != nil {
 		return nil, err
