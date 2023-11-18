@@ -19,14 +19,14 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 	return id, nil
 }
 
-// writeJSON is a helper which writes the given data to the client in JSON format with the appropriate headers and status code.
+// writeJSON is a helper that writes the given data to the client in JSON format with the appropriate headers and status code.
 func (app *application) writeJSON(w http.ResponseWriter, status int, data any, headers http.Header) error {
-	js, err := json.Marshal(data)
+	jsonString, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
-	js = append(js, '\n')
+	jsonString = append(jsonString, '\n')
 
 	// Go doesn't throw an error if you try to range over a nil map.
 	for key, value := range headers {
@@ -38,7 +38,7 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data any, h
 	// header instead.
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	w.Write(js)
+	w.Write(jsonString)
 
 	return nil
 }
