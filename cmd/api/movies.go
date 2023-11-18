@@ -19,8 +19,8 @@ type showMovieResponse struct {
 	Version int32    `json:"version"`
 }
 
-func newShowMovieResponse(movie db.Movie) showMovieResponse {
-	return showMovieResponse{
+func newShowMovieResponse(movie db.Movie) *showMovieResponse {
+	return &showMovieResponse{
 		ID:      movie.ID,
 		Title:   movie.Title,
 		Year:    movie.Year,
@@ -45,7 +45,7 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		Version: 1,
 	}
 
-	rsp := newShowMovieResponse(movie)
+	rsp := envelope{"movie": newShowMovieResponse(movie)}
 
 	err = app.writeJSON(w, http.StatusOK, rsp, nil)
 	if err != nil {
