@@ -6,8 +6,26 @@ import (
 	"net/http"
 )
 
+type createMovieRequest struct {
+	Title   string   `json:"title"`
+	Year    int32    `json:"year"`
+	Runtime int32    `json:"runtime"`
+	Genres  []string `json:"genres"`
+}
+
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "create a new movie")
+	var req createMovieRequest
+
+	// Use the new readJSON() helper to decode the request body into the input struct.
+	// If this returns an error, we send the client the error message along with a 400
+	// Bad Request status code, just like before.
+	err := app.readJSON(w, r, &req)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%+v\n", req)
 }
 
 type showMovieResponse struct {
@@ -48,9 +66,9 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		Version: 1,
 	}
 
-	rsp := envelope{"movie": newShowMovieResponse(movie)}
+	resp := envelope{"movie": newShowMovieResponse(movie)}
 
-	err = app.writeJSON(w, http.StatusOK, rsp, nil)
+	err = app.writeJSON(w, http.StatusOK, resp, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

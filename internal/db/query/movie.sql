@@ -1,4 +1,4 @@
--- name: GetMovieBy :one
+-- name: GetMovie :one
 SELECT *
 FROM movies
 WHERE id = $1;
