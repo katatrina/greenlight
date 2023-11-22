@@ -7,10 +7,10 @@ import (
 )
 
 type createMovieRequest struct {
-	Title   string   `json:"title"`
-	Year    int32    `json:"year"`
-	Runtime int32    `json:"runtime"`
-	Genres  []string `json:"genres"`
+	Title   string     `json:"title"`
+	Year    int32      `json:"year"`
+	Runtime db.Runtime `json:"runtime"`
+	Genres  []string   `json:"genres"`
 }
 
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +61,7 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	movie := db.Movie{
 		ID:      id,
 		Title:   "Casablanca",
+		Year:    0, // this field will be omitted in the response body
 		Runtime: 102,
 		Genres:  []string{"drama", "romance", "war"},
 		Version: 1,
