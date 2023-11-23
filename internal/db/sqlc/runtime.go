@@ -11,6 +11,9 @@ import (
 // or convert the JSON string successfully.
 var ErrInvalidRuntimeFormat = errors.New("invalid runtime format")
 
+// Runtime is a custom type that we can use for the runtime column in our movies table.
+// Note: When decoding or encoding a custom field type, Golang will only call the UnmarshalJSON or MarshalJSON methods
+// instead of checking the type of the field versus the type of the JSON value.
 type Runtime int32
 
 func (r *Runtime) MarshalJSON() ([]byte, error) {

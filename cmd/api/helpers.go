@@ -61,6 +61,15 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	dec.DisallowUnknownFields()
 
 	// Decode the request body into the target destination.
+	// Note: When decoding, Golang will check the general form of JSON,
+	// then it continues to decode each field in JSON request body.
+	// So there are errors that belong to the general form of JSON
+	// such as io.EOF, io.ErrUnexpectedEOF, json.SyntaxError, http.MaxBytesError.
+	// And there are errors that belong to the specific field in JSON request body
+	// such as json.UnmarshalTypeError, json.InvalidUnmarshalError, etc.
+	// The errors that belong to the general form of JSON will be checked first.
+	// If there is no error, Golang will continue to check the errors that belong to the specific field.
+	// If there is an error, Golang will stop decoding and return the error.
 	err := dec.Decode(dst)
 	if err != nil {
 		// If there is an error during encoding, start the triage...
@@ -86,6 +95,7 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 		// JSON value is the wrong type for the target destination. If the error relates
 		// to a specific field, then we include that in our error message to make it
 		// easier for the client to debug.
+		// Note: this error will never be caught if we customized the Unmarshal on runtime field.
 		case errors.As(err, &unmarshalTypeError):
 			if unmarshalTypeError.Field != "" {
 				return fmt.Errorf("body contains incorrect JSON type for field %q", unmarshalTypeError.Field)
