@@ -123,4 +123,6 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
+
+	// What will we do next after receiving JSON in the response body?
 }

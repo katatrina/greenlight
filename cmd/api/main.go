@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	db "github.com/katatrina/greenlight/internal/db/sqlc"
 	"github.com/katatrina/greenlight/util"
 	"log"
 	"net/http"
@@ -22,6 +23,7 @@ const version = "1.0.0"
 type application struct {
 	logger *log.Logger
 	config util.Config
+	store  *db.Store
 }
 
 func main() {
@@ -36,23 +38,26 @@ func main() {
 
 	// Initialize a new logger which writes messages to the standard out stream,
 	// prefixed with the current date and time.
-	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)
 
 	// Initialize a new connection pool to our database.
-	db, err := openDB(config)
+	connPool, err := openDB(config)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	// Defer a call to db.Close() so that the connection pool is closed before the
+	// Defer a call to connPool.Close() so that the connection pool is closed before the
 	// main() function exits.
-	db.Close()
+	connPool.Close()
 
 	logger.Println("database connection pool established")
+
+	store := db.NewStore(connPool)
 
 	app := &application{
 		logger: logger,
 		config: config,
+		store:  store,
 	}
 
 	server := &http.Server{
@@ -72,7 +77,7 @@ func main() {
 func openDB(config util.Config) (*sql.DB, error) {
 	// Use sql.Open() to create an empty connection pool, using the DSN from the config
 	// struct.
-	db, err := sql.Open("postgres", config.DBDsn)
+	db, err := sql.Open("postgres", config.DSN)
 	if err != nil {
 		return nil, err
 	}

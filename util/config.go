@@ -5,7 +5,7 @@ import "github.com/spf13/viper"
 type Config struct {
 	Environment string
 	ServerPort  int
-	DBDsn       string `mapstructure:"DB_DSN"`
+	DSN         string `mapstructure:"DB_DSN"`
 }
 
 func LoadConfig(configFile string) (Config, error) {

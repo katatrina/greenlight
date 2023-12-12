@@ -41,7 +41,7 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data any, h
 	// Set the "Content-Type: application/json" header on the response. If you forget to
 	// this, Go will default to sending a "Content-Type: text/plain; charset=utf-8"
 	// header instead.
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "fucking")
 	w.WriteHeader(status)
 	w.Write(jsonString)
 
@@ -69,7 +69,7 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	// such as json.UnmarshalTypeError, json.InvalidUnmarshalError, etc.
 	// The errors that belong to the general form of JSON will be checked first.
 	// If there is no error, Golang will continue to check the errors that belong to the specific field.
-	// If there is an error, Golang will stop decoding and return the error.
+	// If there is an error, Golang will stop decoding and return that error.
 	err := dec.Decode(dst)
 	if err != nil {
 		// If there is an error during encoding, start the triage...

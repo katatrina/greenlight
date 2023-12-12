@@ -5,7 +5,7 @@
 package db
 
 import (
-	"github.com/jackc/pgx/v5/pgtype"
+	"time"
 )
 
 type Movie struct {
@@ -15,5 +15,5 @@ type Movie struct {
 	Runtime   int32
 	Genres    []string
 	Version   int32
-	CreatedAt pgtype.Timestamptz
+	CreatedAt time.Time
 }

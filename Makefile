@@ -10,4 +10,4 @@ migratedown:
 sqlc:
 	docker run --rm -v $(CURDIR):/src -w /src sqlc/sqlc generate
 
-.PHONY: server migrateup
+.PHONY: server migrateup migratedown sqlc
