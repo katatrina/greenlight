@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	db "github.com/katatrina/greenlight/internal/db/sqlc"
 	"github.com/katatrina/greenlight/internal/validator"
@@ -8,7 +9,7 @@ import (
 	"time"
 )
 
-func validateMovie(v *validator.Validator, movie *db.Movie) {
+func validateMovie(v *validator.Validator, movie db.Movie) {
 	// Use the Check() method to execute our validation checks. This will add the
 	// provided key and error message to the "errors" map if the check does not evaluate
 	// to true. For example, in the first line here we "check that the title is not
@@ -53,7 +54,7 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	movie := &db.Movie{
+	movie := db.Movie{
 		Title:   req.Title,
 		Year:    req.Year,
 		Runtime: int32(req.Runtime),
@@ -75,7 +76,30 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	fmt.Fprintf(w, "%+v\n", req)
+	movie, err = app.store.CreateMovie(context.Background(), db.CreateMovieParams{
+		Title:   movie.Title,
+		Year:    movie.Year,
+		Runtime: movie.Runtime,
+		Genres:  movie.Genres,
+	})
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// When sending a HTTP response, we want to include a Location header to let the
+	// client know which URL they can find the newly created resource at. We make an
+	// empty http.Header map and then use the Set() method to add a new Location header,
+	// interpolating the system-generated ID for our new movie in the URL.
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/v1/movies/%d", movie.ID))
+
+	// Write a JSON response with a 201 Created status code, the movie data in the
+	// response body, and the Location header.
+	err = app.writeJSON(w, http.StatusCreated, envelope{"movie": newShowMovieResponse(movie)}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 type showMovieResponse struct {

@@ -48,7 +48,7 @@ func main() {
 
 	// Defer a call to connPool.Close() so that the connection pool is closed before the
 	// main() function exits.
-	connPool.Close()
+	defer connPool.Close()
 
 	logger.Println("database connection pool established")
 

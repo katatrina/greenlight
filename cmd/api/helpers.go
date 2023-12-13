@@ -41,7 +41,7 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data any, h
 	// Set the "Content-Type: application/json" header on the response. If you forget to
 	// this, Go will default to sending a "Content-Type: text/plain; charset=utf-8"
 	// header instead.
-	w.Header().Set("Content-Type", "fucking")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	w.Write(jsonString)
 

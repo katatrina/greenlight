@@ -11,6 +11,38 @@ import (
 	"github.com/lib/pq"
 )
 
+const createMovie = `-- name: CreateMovie :one
+INSERT INTO movies (title, year, runtime, genres)
+VALUES ($1, $2, $3, $4) RETURNING id, title, year, runtime, genres, version, created_at
+`
+
+type CreateMovieParams struct {
+	Title   string
+	Year    int32
+	Runtime int32
+	Genres  []string
+}
+
+func (q *Queries) CreateMovie(ctx context.Context, arg CreateMovieParams) (Movie, error) {
+	row := q.db.QueryRowContext(ctx, createMovie,
+		arg.Title,
+		arg.Year,
+		arg.Runtime,
+		pq.Array(arg.Genres),
+	)
+	var i Movie
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Year,
+		&i.Runtime,
+		pq.Array(&i.Genres),
+		&i.Version,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getMovie = `-- name: GetMovie :one
 SELECT id, title, year, runtime, genres, version, created_at
 FROM movies
