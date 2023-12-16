@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	db "github.com/katatrina/greenlight/internal/db/sqlc"
 	"github.com/katatrina/greenlight/internal/validator"
@@ -67,6 +69,9 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	// also in the case of providing an empty value.
 	// So here, if any field is not provided in the request body, it is empty after decoding to Go struct.
 	// And we must validate it manually.
+	/*
+		Nah bro, Gin - a web framework can validate by struct tags.
+	*/
 	v := validator.New()
 
 	// Call the ValidateMovie() function and return a response containing the errors if
@@ -132,13 +137,16 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		app.notFoundResponse(w, r)
 	}
 
-	movie := db.Movie{
-		ID:      id,
-		Title:   "Casablanca",
-		Year:    0, // this field will be omitted in the response body
-		Runtime: 102,
-		Genres:  []string{"drama", "romance", "war"},
-		Version: 1,
+	movie, err := app.store.GetMovie(context.Background(), id)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+
+		return
 	}
 
 	resp := envelope{"movie": newShowMovieResponse(movie)}
@@ -149,4 +157,68 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// What will we do next after receiving JSON in the response body?
+}
+
+type updateMovieRequest struct {
+	Title   string     `json:"title"`
+	Year    int32      `json:"year"`
+	Runtime db.Runtime `json:"runtime"`
+	Genres  []string   `json:"genres"`
+}
+
+func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	movie, err := app.store.GetMovie(context.Background(), id)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+
+		return
+	}
+
+	var req updateMovieRequest
+	err = app.readJSON(w, r, &req)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	movie.Title = req.Title
+	movie.Year = req.Year
+	movie.Runtime = int32(req.Runtime)
+	movie.Genres = req.Genres
+
+	v := validator.New()
+	if validateMovie(v, movie); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	movie, err = app.store.UpdateMovie(context.Background(), db.UpdateMovieParams{
+		Title:   movie.Title,
+		Year:    movie.Year,
+		Runtime: movie.Runtime,
+		Genres:  movie.Genres,
+		ID:      movie.ID,
+	})
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	resp := envelope{"movie": newShowMovieResponse(movie)}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"movie": resp}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }

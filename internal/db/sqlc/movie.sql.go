@@ -63,3 +63,42 @@ func (q *Queries) GetMovie(ctx context.Context, id int64) (Movie, error) {
 	)
 	return i, err
 }
+
+const updateMovie = `-- name: UpdateMovie :one
+UPDATE movies
+SET title   = $1,
+    year    = $2,
+    runtime = $3,
+    genres  = $4,
+    version = version + 1
+WHERE id = $5 RETURNING id, title, year, runtime, genres, version, created_at
+`
+
+type UpdateMovieParams struct {
+	Title   string
+	Year    int32
+	Runtime int32
+	Genres  []string
+	ID      int64
+}
+
+func (q *Queries) UpdateMovie(ctx context.Context, arg UpdateMovieParams) (Movie, error) {
+	row := q.db.QueryRowContext(ctx, updateMovie,
+		arg.Title,
+		arg.Year,
+		arg.Runtime,
+		pq.Array(arg.Genres),
+		arg.ID,
+	)
+	var i Movie
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Year,
+		&i.Runtime,
+		pq.Array(&i.Genres),
+		&i.Version,
+		&i.CreatedAt,
+	)
+	return i, err
+}

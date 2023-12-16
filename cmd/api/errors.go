@@ -26,7 +26,7 @@ func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, st
 
 // serverErrorResponse will be used when our application encounters an
 // unexpected problem at runtime. It logs the detailed error message, then use the
-// errorResponse() helper to send a 500 Internal Server Error status code and JSON
+// errorResponse helper to send a 500 Internal Server Error status code and JSON
 // response (containing a generic error message) to the client.
 func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
 	app.logError(r, err)

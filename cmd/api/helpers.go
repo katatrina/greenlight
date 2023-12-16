@@ -58,6 +58,7 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	// field that cannot be mapped to the target destination, the decoder will return
 	// an error instead of just ignoring the field.
 	dec := json.NewDecoder(r.Body)
+	// This method requires that the request body must match exactly(case-insensitive) with the struct destination.
 	dec.DisallowUnknownFields()
 
 	// Decode the request body into the target destination.
