@@ -222,3 +222,32 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+func (app *application) deleteMovieHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	rowsAffected, err := app.store.DeleteMovie(context.Background(), id)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// If no rows were affected, we know that the "movies" table didn't contain a record
+	// with the provided ID at the moment we tried to delete it.
+	// In that case, we return an not found error.
+	if rowsAffected == 0 {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	resp := envelope{"message": "movie successfully deleted!"}
+
+	err = app.writeJSON(w, http.StatusOK, resp, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}

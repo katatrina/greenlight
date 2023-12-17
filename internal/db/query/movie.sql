@@ -15,3 +15,7 @@ SET title   = $1,
     genres  = $4,
     version = version + 1
 WHERE id = $5 RETURNING *;
+
+-- name: DeleteMovie :execrows
+DELETE FROM movies
+WHERE id = $1;
