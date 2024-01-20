@@ -160,10 +160,10 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type updateMovieRequest struct {
-	Title   string     `json:"title"`
-	Year    int32      `json:"year"`
-	Runtime db.Runtime `json:"runtime"`
-	Genres  []string   `json:"genres"`
+	Title   *string     `json:"title"` // This will be a nil if there is no corresponding key in the JSON.
+	Year    *int32      `json:"year"`
+	Runtime *db.Runtime `json:"runtime"`
+	Genres  []string    `json:"genres"` // We don't need to change this because slices already have the zero-value nil.
 }
 
 func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
@@ -192,10 +192,28 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	movie.Title = req.Title
-	movie.Year = req.Year
-	movie.Runtime = int32(req.Runtime)
-	movie.Genres = req.Genres
+	// If the input.Title value is nil then we know that no corresponding "title" key/
+	// value pair was provided in the JSON request body. So we move on and leave the
+	// movie record unchanged. Otherwise, we update the movie record with the new title
+	// value. Importantly, because input.Title is a now a pointer to a string, we need
+	// to dereference the pointer using the * operator to get the underlying value
+	// before assigning it to our movie record.
+	if req.Title != nil {
+		movie.Title = *req.Title
+	}
+
+	// We also do the same for the other fields in the input struct.
+	if req.Year != nil {
+		movie.Year = *req.Year
+	}
+
+	if req.Runtime != nil {
+		movie.Runtime = int32(*req.Runtime)
+	}
+
+	if req.Genres != nil {
+		movie.Genres = req.Genres
+	}
 
 	v := validator.New()
 	if validateMovie(v, movie); !v.Valid() {
@@ -217,7 +235,7 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 
 	resp := envelope{"movie": newShowMovieResponse(movie)}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"movie": resp}, nil)
+	err = app.writeJSON(w, http.StatusOK, resp, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
@@ -238,7 +256,7 @@ func (app *application) deleteMovieHandler(w http.ResponseWriter, r *http.Reques
 
 	// If no rows were affected, we know that the "movies" table didn't contain a record
 	// with the provided ID at the moment we tried to delete it.
-	// In that case, we return an not found error.
+	// In that case, we return a not found error.
 	if rowsAffected == 0 {
 		app.notFoundResponse(w, r)
 		return
