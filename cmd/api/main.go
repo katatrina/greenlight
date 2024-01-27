@@ -7,7 +7,7 @@ import (
 	"fmt"
 	db "github.com/katatrina/greenlight/internal/db/sqlc"
 	"github.com/katatrina/greenlight/util"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -21,7 +21,7 @@ const version = "1.0.0"
 // Define an application struct to hold the dependencies for our HTTP handlers, helpers,
 // and middlewares.
 type application struct {
-	logger *log.Logger
+	logger *slog.Logger
 	config util.Config
 	store  *db.Store
 }
@@ -36,42 +36,43 @@ func main() {
 	flag.StringVar(&config.Environment, "env", "development", "Environment (development|staging|production)")
 	flag.Parse()
 
-	// Initialize a new logger which writes messages to the standard out stream,
-	// prefixed with the current date and time.
-	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)
+	// Initialized a new structured logger which writes log entries to the standard out stream.
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Initialize a new connection pool to our database.
 	connPool, err := openDB(config)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Error(err.Error())
+		os.Exit(1)
 	}
 
-	// Defer a call to connPool.Close() so that the connection pool is closed before the
-	// main() function exits.
-	defer connPool.Close()
-
-	logger.Println("database connection pool established")
+	logger.Info("database connection pool established")
 
 	store := db.NewStore(connPool)
 
 	app := &application{
-		logger: logger,
-		config: config,
-		store:  store,
+		logger,
+		config,
+		store,
 	}
-
+	// Declare an HTTP server which listens to the port provided in the config struct,
+	// uses the router returned by routes method, as some sensible timeout settings and
+	// writes any log messages to the structured logger at Error level.
 	server := &http.Server{
 		Addr:         fmt.Sprintf("localhost:%d", config.ServerPort),
 		Handler:      app.routes(), // app.routes() returns a router a.k.a server multiplexer.
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
+		ErrorLog:     slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
 
+	logger.Info("starting server", "address", "http://"+server.Addr, "environment", config.Environment)
 	// Start the HTTP server.
-	logger.Printf("starting %s server on http://%s", config.Environment, server.Addr)
 	err = server.ListenAndServe()
-	logger.Fatal(err)
+	connPool.Close()
+	logger.Error(err.Error())
+	os.Exit(1)
 }
 
 func openDB(config util.Config) (*sql.DB, error) {
@@ -92,6 +93,7 @@ func openDB(config util.Config) (*sql.DB, error) {
 	// error.
 	err = db.PingContext(ctx)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 

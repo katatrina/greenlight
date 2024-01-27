@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func validateMovie(v *validator.Validator, movie db.Movie) {
+func validateMovie(v *validator.Validator, movie *db.Movie) {
 	// Use the Check() method to execute our validation checks. This will add the
 	// provided key and error message to the "errors" map if the check does not evaluate
 	// to true. For example, in the first line here we "check that the title is not
@@ -56,6 +56,8 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Checkpoint: Decoding successfully
+
 	movie := db.Movie{
 		Title:   req.Title,
 		Year:    req.Year,
@@ -76,10 +78,12 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 
 	// Call the ValidateMovie() function and return a response containing the errors if
 	// any of the checks fail.
-	if validateMovie(v, movie); !v.Valid() {
+	if validateMovie(v, &movie); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
+
+	// Checkpoint: Validating user input successfully
 
 	movie, err = app.store.CreateMovie(context.Background(), db.CreateMovieParams{
 		Title:   movie.Title,
@@ -216,7 +220,7 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	v := validator.New()
-	if validateMovie(v, movie); !v.Valid() {
+	if validateMovie(v, &movie); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}

@@ -25,8 +25,8 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 type envelope map[string]any
 
 // writeJSON is a helper that writes the given data to the client in JSON format with the appropriate headers and status code.
-func (app *application) writeJSON(w http.ResponseWriter, status int, data any, headers http.Header) error {
-	jsonString, err := json.Marshal(data)
+func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
+	jsonString, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		return err
 	}
@@ -71,6 +71,7 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	// The errors that belong to the general form of JSON will be checked first.
 	// If there is no error, Golang will continue to check the errors that belong to the specific field.
 	// If there is an error, Golang will stop decoding and return that error.
+	// So we should place the case of switch statement in a proper order.
 	err := dec.Decode(dst)
 	if err != nil {
 		// If there is an error during encoding, start the triage...

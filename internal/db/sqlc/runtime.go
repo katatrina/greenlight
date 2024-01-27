@@ -47,7 +47,7 @@ func (r *Runtime) UnmarshalJSON(jsonValue []byte) error {
 	parts := strings.Split(unquotedJSONValue, " ")
 	// Sanity checks the parts of the string to make sure it was in the expected format.
 	// If it isn't, we return the ErrInvalidRuntimeFormat error again.
-	if len(parts) != 2 || parts[1] != "mins" {
+	if len(parts) != 2 || parts[1] != "mins" { // index out of range error can be occurring here
 		return ErrInvalidRuntimeFormat
 	}
 

@@ -1,4 +1,4 @@
-CREATE TABLE "movies"
+CREATE TABLE IF NOT EXISTS "movies"
 (
     "id"         bigserial PRIMARY KEY,
     "title"      text        NOT NULL,
