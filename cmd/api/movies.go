@@ -159,8 +159,6 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
-
-	// What will we do next after receiving JSON in the response body?
 }
 
 type updateMovieRequest struct {
@@ -177,6 +175,7 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Check if the provided movie ID in URL is existed in our database.
 	movie, err := app.store.GetMovie(context.Background(), id)
 	if err != nil {
 		switch {
@@ -189,6 +188,7 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Read the JSON request body into a Go native data type.
 	var req updateMovieRequest
 	err = app.readJSON(w, r, &req)
 	if err != nil {
@@ -196,17 +196,12 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// If the input.Title value is nil then we know that no corresponding "title" key/
-	// value pair was provided in the JSON request body. So we move on and leave the
-	// movie record unchanged. Otherwise, we update the movie record with the new title
-	// value. Importantly, because input.Title is a now a pointer to a string, we need
-	// to dereference the pointer using the * operator to get the underlying value
-	// before assigning it to our movie record.
+	// Checking and copying the new values from the request body to the appropriate fields of the queried movie.
+
 	if req.Title != nil {
 		movie.Title = *req.Title
 	}
 
-	// We also do the same for the other fields in the input struct.
 	if req.Year != nil {
 		movie.Year = *req.Year
 	}
