@@ -5,8 +5,10 @@ go 1.21.1
 require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/lib/pq v1.10.9
+	github.com/pascaldekloe/jwt v1.12.0
 	github.com/spf13/viper v1.17.0
 	golang.org/x/crypto v0.18.0
+	golang.org/x/sync v0.3.0
 )
 
 require (

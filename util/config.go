@@ -3,9 +3,10 @@ package util
 import "github.com/spf13/viper"
 
 type Config struct {
-	Environment string
-	ServerPort  int
-	DSN         string `mapstructure:"DB_DSN"`
+	Environment  string
+	ServerPort   int
+	DSN          string `mapstructure:"DB_DSN"`
+	JWTSecretKey string `mapstructure:"JWT_SECRET_KEY"`
 }
 
 func LoadConfig(configFile string) (Config, error) {

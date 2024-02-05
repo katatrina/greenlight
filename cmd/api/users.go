@@ -6,7 +6,9 @@ import (
 	db "github.com/katatrina/greenlight/internal/db/sqlc"
 	"github.com/katatrina/greenlight/internal/validator"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/sync/errgroup"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -78,6 +80,59 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	err = app.writeJSON(w, http.StatusCreated, envelope{"user": resp}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) listUserHandler(w http.ResponseWriter, r *http.Request) {
+	g := new(errgroup.Group)
+
+	resp := envelope{"users": []db.User{}, "total_users": 0}
+
+	g.Go(func() error {
+		totalUsers, err := app.store.ListTotalUsers(context.Background())
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return err
+		}
+
+		resp["total_users"] = totalUsers
+		return err
+	})
+
+	g.Go(func() error {
+		pageID, err := strconv.Atoi(r.URL.Query().Get("page_id"))
+		if err != nil || pageID < 1 {
+			err := errors.New("page_id must be greater than zero")
+			app.notFoundResponse(w, r)
+			return err
+		}
+
+		pageSize, err := strconv.Atoi(r.URL.Query().Get("page_size"))
+		if err != nil || pageSize < 1 || pageSize > 10 {
+			err := errors.New("page_size must be between 1 and 10")
+			app.notFoundResponse(w, r)
+			return err
+		}
+
+		arg := db.ListUsersParams{
+			Limit:  int32(pageSize),
+			Offset: int32((pageID - 1) * pageSize),
+		}
+
+		users, err := app.store.ListUsers(context.Background(), arg)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return err
+		}
+		resp["users"] = users
+		return err
+	})
+
+	if err := g.Wait(); err == nil {
+		err = app.writeJSON(w, http.StatusOK, resp, nil)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+		}
 	}
 }
 

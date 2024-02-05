@@ -8,3 +8,6 @@ sql:
         package: "db"
         out: "./internal/db/sqlc"
         sql_package: "postgres"
+        overrides:
+          - column: users.password_hash
+            go_struct_tag: "json:\"-\"" # ignore this field in json
