@@ -1,14 +1,18 @@
 package main
 
 import (
-	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 // healthcheckHandler show application information.
 func (app *application) healthcheckHandler(ctx *gin.Context) {
-	ctx.Writer.Write([]byte("status: available\n"))
-	ctx.Writer.Write([]byte(fmt.Sprintf("environment: %s\n", app.config.env)))
-	ctx.Writer.Write([]byte(fmt.Sprintf("version: %s\n", version)))
+	data := map[string]string{
+		"status":      "available",
+		"environment": app.config.env,
+		"version":     version,
+	}
+
+	app.writeJSON(ctx, http.StatusOK, data, nil)
 }
