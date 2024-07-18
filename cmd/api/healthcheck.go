@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-// healthcheckHandler writes a plain-text response with information about the
-// application status, operating environment and version.
-func (app *application) healthcheckHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "status: available")
-	fmt.Fprintf(w, "environment: %s\n", app.config.env)
-	fmt.Fprintf(w, "version: %s\n", version)
+// healthcheckHandler show application information.
+func (app *application) healthcheckHandler(ctx *gin.Context) {
+	ctx.Writer.Write([]byte("status: available\n"))
+	ctx.Writer.Write([]byte(fmt.Sprintf("environment: %s\n", app.config.env)))
+	ctx.Writer.Write([]byte(fmt.Sprintf("version: %s\n", version)))
 }
