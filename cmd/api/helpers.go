@@ -7,6 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type envelop map[string]any
+
 // readIDParam retrieve the "id" URL parameter from the provided request context,
 // then convert it into an integer and return it.
 // If the parameter couldn't be converted, or is less than 1, return 0 and an error.
@@ -19,12 +21,12 @@ func (app *application) readIDParam(ctx *gin.Context) (int64, error) {
 	return id, nil
 }
 
-// writeJSON take the request context, the HTTP status code to send, the data in struct or map to encode to JSON, and a
+// writeJSON take the request context, the HTTP status code to send, the data must be a struct or a map to be encoded to JSON, and a
 // header map containing any additional HTTP headers we want to include in the response.
-func (app *application) writeJSON(ctx *gin.Context, code int, data any, headers map[string]string) {
+func (app *application) writeJSON(ctx *gin.Context, statusCode int, data any, headers map[string]string) {
 	for key, value := range headers {
 		ctx.Header(key, value)
 	}
 
-	ctx.JSON(code, data)
+	ctx.JSON(statusCode, data)
 }

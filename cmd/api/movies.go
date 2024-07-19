@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/katatrina/greenlight/internal/data"
 )
 
 // createMovieHandler create a new movie.
@@ -14,12 +15,23 @@ func (app *application) createMovieHandler(ctx *gin.Context) {
 
 // showMovieHandler show the details of a specific movie.
 func (app *application) showMovieHandler(ctx *gin.Context) {
-	// Try to convert the id string to a base 10 integer (with a bit size of 64)
+	// Try to convert the id string to a base 10 integer (with a bit size of 64).
 	movieID, err := app.readIDParam(ctx)
 	if err != nil {
-		ctx.String(http.StatusNotFound, "404 page not found")
+		app.notFoundResponse(ctx)
 		return
 	}
 
-	ctx.Writer.Write([]byte(fmt.Sprintf("show the details of movie %d\n", movieID)))
+	movie := data.Movie{
+		ID:        movieID,
+		CreatedAt: time.Now(),
+		Title:     "Casablanca",
+		Runtime:   102,
+		Genres:    []string{"drama", "romance", "war"},
+		Version:   1,
+	}
+
+	rsp := envelop{"movie": movie}
+
+	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }

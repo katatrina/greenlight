@@ -10,6 +10,8 @@ func (app *application) routes() http.Handler {
 	// Initialize a new gin router instance.
 	router := gin.Default()
 	router.HandleMethodNotAllowed = true
+	router.NoMethod(app.methodNotAllowedResponse)
+	router.NoRoute(app.notFoundResponse)
 
 	router.GET("/v1/healthcheck", app.healthcheckHandler)
 	router.GET("/v1/movies/:id", app.showMovieHandler)
