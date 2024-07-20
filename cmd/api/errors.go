@@ -54,3 +54,9 @@ func (app *application) methodNotAllowedResponse(ctx *gin.Context) {
 
 	app.errorResponse(ctx, http.StatusMethodNotAllowed, message)
 }
+
+// badRequestResponse send a 400 Bad Request status code
+// and JSON response to the client.
+func (app *application) badRequestResponse(ctx *gin.Context, err error) {
+	app.errorResponse(ctx, http.StatusBadRequest, err.Error())
+}

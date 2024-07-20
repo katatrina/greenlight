@@ -8,9 +8,24 @@ import (
 	"github.com/katatrina/greenlight/internal/data"
 )
 
+type createMovieRequest struct {
+	Title   string   `json:"title"`
+	Year    int32    `json:"year"`
+	Runtime int32    `json:"runtime"`
+	Genres  []string `json:"genres"`
+}
+
 // createMovieHandler create a new movie.
 func (app *application) createMovieHandler(ctx *gin.Context) {
-	ctx.Writer.Write([]byte("create a new movie"))
+	var req createMovieRequest
+
+	err := app.readJSON(ctx, &req)
+	if err != nil {
+		app.badRequestResponse(ctx, err)
+		return
+	}
+
+	app.writeJSON(ctx, http.StatusOK, req, nil)
 }
 
 // showMovieHandler show the details of a specific movie.
