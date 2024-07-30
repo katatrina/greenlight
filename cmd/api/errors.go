@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/katatrina/greenlight/internal/validator"
 )
 
 // logError is a generic helper for logging an error (usually caused by the internal server)
@@ -59,4 +60,9 @@ func (app *application) methodNotAllowedResponse(ctx *gin.Context) {
 // and JSON response to the client.
 func (app *application) badRequestResponse(ctx *gin.Context, err error) {
 	app.errorResponse(ctx, http.StatusBadRequest, err.Error())
+}
+
+// failedValidationResponse send a 422 Unprocessable Entity status code and JSON response to the client.
+func (app *application) failedValidationResponse(ctx *gin.Context, errors validator.Violations) {
+	app.errorResponse(ctx, http.StatusUnprocessableEntity, errors)
 }

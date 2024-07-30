@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/katatrina/greenlight/internal/data"
+	"github.com/katatrina/greenlight/internal/validator"
 )
 
 type createMovieRequest struct {
@@ -15,6 +16,28 @@ type createMovieRequest struct {
 	Genres  []string     `json:"genres"`
 }
 
+func validateCreateMovieRequest(req *createMovieRequest) validator.Violations {
+	violations := validator.New()
+
+	if err := validator.ValidateMovieTitle(req.Title); err != nil {
+		violations.AddError("title", err.Error())
+	}
+
+	if err := validator.ValidateMovieYear(req.Year); err != nil {
+		violations.AddError("year", err.Error())
+	}
+
+	if err := validator.ValidateMovieRuntime(int32(req.Runtime)); err != nil {
+		violations.AddError("runtime", err.Error())
+	}
+
+	if err := validator.ValidateMovieGenres(req.Genres); err != nil {
+		violations.AddError("genres", err.Error())
+	}
+
+	return violations
+}
+
 // createMovieHandler create a new movie.
 func (app *application) createMovieHandler(ctx *gin.Context) {
 	var req createMovieRequest
@@ -22,6 +45,12 @@ func (app *application) createMovieHandler(ctx *gin.Context) {
 	err := app.readJSON(ctx, &req)
 	if err != nil {
 		app.badRequestResponse(ctx, err)
+		return
+	}
+
+	violations := validateCreateMovieRequest(&req)
+	if !violations.Empty() {
+		app.failedValidationResponse(ctx, violations)
 		return
 	}
 
