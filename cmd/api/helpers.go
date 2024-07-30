@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 )
 
 type envelop map[string]any
@@ -45,7 +44,6 @@ func (app *application) readJSON(ctx *gin.Context, destinaton any) error {
 	// TODO: Disallow unknown fields in body
 
 	err := ctx.ShouldBindJSON(destinaton)
-	ctx.MustBindWith(destinaton, binding.JSON)
 	if err != nil {
 		var (
 			syntaxError           *json.SyntaxError

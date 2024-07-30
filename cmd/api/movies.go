@@ -9,10 +9,10 @@ import (
 )
 
 type createMovieRequest struct {
-	Title   string   `json:"title"`
-	Year    int32    `json:"year"`
-	Runtime int32    `json:"runtime"`
-	Genres  []string `json:"genres"`
+	Title   string       `json:"title"`
+	Year    int32        `json:"year"`
+	Runtime data.Runtime `json:"runtime"`
+	Genres  []string     `json:"genres"`
 }
 
 // createMovieHandler create a new movie.
