@@ -157,10 +157,38 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 		Genres:  req.Genres,
 	})
 	if err != nil {
+		if errors.Is(err, db.ErrRecordNotFound) {
+			app.notFoundResponse(ctx)
+			return
+		}
+
 		app.serverErrorResponse(ctx, err)
 		return
 	}
 
 	rsp := envelop{"movie": movie}
+	app.writeJSON(ctx, http.StatusOK, rsp, nil)
+}
+
+func (app *application) deleteMovieHandler(ctx *gin.Context) {
+	movieID, err := app.readIDParam(ctx)
+	if err != nil {
+		app.notFoundResponse(ctx)
+		return
+	}
+
+	rowsAffected, err := app.store.DeleteMovie(ctx, movieID)
+	if err != nil {
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	// If no rows were affected, then the movie with that ID did not exist.
+	if rowsAffected == 0 || rowsAffected != 1 {
+		app.notFoundResponse(ctx)
+		return
+	}
+
+	rsp := envelop{"message": "movie successfully deleted!"}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }

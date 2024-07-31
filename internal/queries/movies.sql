@@ -28,3 +28,7 @@ SET
     version = version + 1
 WHERE id = $1
 RETURNING *;
+
+-- name: DeleteMovie :execrows
+DELETE FROM movies
+WHERE id = $1;
