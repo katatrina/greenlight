@@ -9,5 +9,8 @@ migrate-up:
 migrate-down:
 	migrate -path $(MIGRATE_PATH) -database $(DB_DSN) down
 
+sqlc:
+	sqlc generate
+
 server:
 	go run ./cmd/api

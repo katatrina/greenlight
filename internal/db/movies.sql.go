@@ -51,3 +51,24 @@ func (q *Queries) CreateMovie(ctx context.Context, arg CreateMovieParams) (Movie
 	)
 	return i, err
 }
+
+const getMovie = `-- name: GetMovie :one
+SELECT id, title, runtime, genres, year, version, created_at
+FROM movies
+WHERE id = $1
+`
+
+func (q *Queries) GetMovie(ctx context.Context, id int64) (Movie, error) {
+	row := q.db.QueryRow(ctx, getMovie, id)
+	var i Movie
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Runtime,
+		&i.Genres,
+		&i.Year,
+		&i.Version,
+		&i.CreatedAt,
+	)
+	return i, err
+}

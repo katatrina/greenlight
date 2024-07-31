@@ -1,9 +1,9 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/katatrina/greenlight/internal/db"
@@ -84,16 +84,17 @@ func (app *application) showMovieHandler(ctx *gin.Context) {
 		return
 	}
 
-	movie := db.Movie{
-		ID:        movieID,
-		CreatedAt: time.Now(),
-		Title:     "Casablanca",
-		Runtime:   102,
-		Genres:    []string{"drama", "romance", "war"},
-		Version:   1,
+	movie, err := app.store.GetMovie(ctx, movieID)
+	if err != nil {
+		if errors.Is(err, db.ErrRecordNotFound) {
+			app.notFoundResponse(ctx)
+			return
+		}
+
+		app.serverErrorResponse(ctx, err)
+		return
 	}
 
 	rsp := envelop{"movie": movie}
-
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }

@@ -12,3 +12,8 @@ VALUES (
         $4
     )
 RETURNING *;
+
+-- name: GetMovie :one
+SELECT *
+FROM movies
+WHERE id = $1;
