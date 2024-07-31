@@ -14,8 +14,13 @@ func (app *application) routes() http.Handler {
 	router.NoRoute(app.notFoundResponse)
 
 	router.GET("/v1/healthcheck", app.healthcheckHandler)
-	router.GET("/v1/movies/:id", app.showMovieHandler)
-	router.POST("/v1/movies", app.createMovieHandler)
+
+	movieRoutes := router.Group("/v1/movies")
+	{
+		movieRoutes.POST("", app.createMovieHandler)
+		movieRoutes.GET("/:id", app.showMovieHandler)
+		movieRoutes.PUT("/:id", app.updateMovieHandler)
+	}
 
 	return router
 }

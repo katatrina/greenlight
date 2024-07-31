@@ -12,7 +12,7 @@ import (
 const createMovie = `-- name: CreateMovie :one
 INSERT INTO movies (
         title,
-        "year",
+        year,
         runtime,
         genres
     )
@@ -60,6 +60,47 @@ WHERE id = $1
 
 func (q *Queries) GetMovie(ctx context.Context, id int64) (Movie, error) {
 	row := q.db.QueryRow(ctx, getMovie, id)
+	var i Movie
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Runtime,
+		&i.Genres,
+		&i.Year,
+		&i.Version,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateMovie = `-- name: UpdateMovie :one
+UPDATE movies
+SET
+    title = $2,
+    year = $3,
+    runtime = $4,
+    genres = $5,
+    version = version + 1
+WHERE id = $1
+RETURNING id, title, runtime, genres, year, version, created_at
+`
+
+type UpdateMovieParams struct {
+	ID      int64    `json:"id"`
+	Title   string   `json:"title"`
+	Year    int32    `json:"year"`
+	Runtime Runtime  `json:"runtime"`
+	Genres  []string `json:"genres"`
+}
+
+func (q *Queries) UpdateMovie(ctx context.Context, arg UpdateMovieParams) (Movie, error) {
+	row := q.db.QueryRow(ctx, updateMovie,
+		arg.ID,
+		arg.Title,
+		arg.Year,
+		arg.Runtime,
+		arg.Genres,
+	)
 	var i Movie
 	err := row.Scan(
 		&i.ID,

@@ -98,3 +98,69 @@ func (app *application) showMovieHandler(ctx *gin.Context) {
 	rsp := envelop{"movie": movie}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
+
+type updateMovieRequest struct {
+	Title   string     `json:"title"`
+	Year    int32      `json:"year"`
+	Runtime db.Runtime `json:"runtime"`
+	Genres  []string   `json:"genres"`
+}
+
+func validateUpdateMovieRequest(req *updateMovieRequest) validator.Violations {
+	violations := validator.New()
+
+	if err := validator.ValidateMovieTitle(req.Title); err != nil {
+		violations.AddError("title", err.Error())
+	}
+
+	if err := validator.ValidateMovieYear(req.Year); err != nil {
+		violations.AddError("year", err.Error())
+	}
+
+	if err := validator.ValidateMovieRuntime(int32(req.Runtime)); err != nil {
+		violations.AddError("runtime", err.Error())
+	}
+
+	if err := validator.ValidateMovieGenres(req.Genres); err != nil {
+		violations.AddError("genres", err.Error())
+	}
+
+	return violations
+}
+
+func (app *application) updateMovieHandler(ctx *gin.Context) {
+	movieID, err := app.readIDParam(ctx)
+	if err != nil {
+		app.notFoundResponse(ctx)
+		return
+	}
+
+	var req updateMovieRequest
+
+	err = app.readJSON(ctx, &req)
+	if err != nil {
+		app.badRequestResponse(ctx, err)
+		return
+	}
+
+	violations := validateUpdateMovieRequest(&req)
+	if !violations.Empty() {
+		app.failedValidationResponse(ctx, violations)
+		return
+	}
+
+	movie, err := app.store.UpdateMovie(ctx, db.UpdateMovieParams{
+		ID:      movieID,
+		Title:   req.Title,
+		Year:    req.Year,
+		Runtime: req.Runtime,
+		Genres:  req.Genres,
+	})
+	if err != nil {
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	rsp := envelop{"movie": movie}
+	app.writeJSON(ctx, http.StatusOK, rsp, nil)
+}

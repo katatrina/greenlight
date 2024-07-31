@@ -42,6 +42,7 @@ func (app *application) readJSON(ctx *gin.Context, destinaton any) error {
 	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, int64(maxBytes))
 
 	// TODO: Disallow unknown fields in body
+	// TODO: Differentiate between missing, null, and empty values
 
 	err := ctx.ShouldBindJSON(destinaton)
 	if err != nil {
