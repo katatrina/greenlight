@@ -2,18 +2,19 @@ package main
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/katatrina/greenlight/internal/data"
+	"github.com/katatrina/greenlight/internal/db"
 	"github.com/katatrina/greenlight/internal/validator"
 )
 
 type createMovieRequest struct {
-	Title   string       `json:"title"`
-	Year    int32        `json:"year"`
-	Runtime data.Runtime `json:"runtime"`
-	Genres  []string     `json:"genres"`
+	Title   string     `json:"title"`
+	Year    int32      `json:"year"`
+	Runtime db.Runtime `json:"runtime"`
+	Genres  []string   `json:"genres"`
 }
 
 func validateCreateMovieRequest(req *createMovieRequest) validator.Violations {
@@ -54,7 +55,24 @@ func (app *application) createMovieHandler(ctx *gin.Context) {
 		return
 	}
 
-	app.writeJSON(ctx, http.StatusOK, req, nil)
+	movie, err := app.store.CreateMovie(ctx, db.CreateMovieParams{
+		Title:   req.Title,
+		Year:    req.Year,
+		Runtime: req.Runtime,
+		Genres:  req.Genres,
+	})
+	if err != nil {
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	// We want to include a Location header to let the client know
+	// where they can find the newly-created movie resource at.
+	headers := make(map[string]string)
+	headers["Location"] = "/v1/movies/" + strconv.FormatInt(movie.ID, 10)
+
+	rsp := envelop{"movie": movie}
+	app.writeJSON(ctx, http.StatusCreated, rsp, headers)
 }
 
 // showMovieHandler show the details of a specific movie.
@@ -66,7 +84,7 @@ func (app *application) showMovieHandler(ctx *gin.Context) {
 		return
 	}
 
-	movie := data.Movie{
+	movie := db.Movie{
 		ID:        movieID,
 		CreatedAt: time.Now(),
 		Title:     "Casablanca",

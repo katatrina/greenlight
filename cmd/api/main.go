@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/katatrina/greenlight/internal/db"
 )
 
 // Application version number
@@ -29,6 +30,7 @@ type config struct {
 type application struct {
 	config config
 	logger *slog.Logger
+	store  db.Store
 }
 
 func main() {
@@ -43,18 +45,21 @@ func main() {
 	// Initialize a new structured logger which writes log entries to the standard out stream.
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	dbPool, err := openDB(cfg)
+	connPool, err := openDB(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer dbPool.Close()
+	defer connPool.Close()
 
 	logger.Info("database connection pool established")
+
+	store := db.NewStore(connPool)
 
 	app := application{
 		config: cfg,
 		logger: logger,
+		store:  store,
 	}
 
 	// Declare a HTTP server which listens on the port provided in the config struct,
@@ -70,7 +75,7 @@ func main() {
 	}
 
 	// Start the HTTP server.
-	logger.Info("starting server", "addr", srv.Addr, "env", cfg.env)
+	logger.Info("server is listening", "addr", srv.Addr, "env", cfg.env)
 
 	err = srv.ListenAndServe()
 	logger.Error(err.Error())
@@ -79,7 +84,7 @@ func main() {
 
 // openDB creates a new connection pool to our PostgreSQL database.
 func openDB(cfg config) (*pgxpool.Pool, error) {
-	dbPool, err := pgxpool.New(context.Background(), cfg.db.dsn)
+	connPool, err := pgxpool.New(context.Background(), cfg.db.dsn)
 
 	if err != nil {
 		return nil, err
@@ -89,11 +94,11 @@ func openDB(cfg config) (*pgxpool.Pool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = dbPool.Ping(ctx)
+	err = connPool.Ping(ctx)
 	if err != nil {
-		defer dbPool.Close()
+		defer connPool.Close()
 		return nil, err
 	}
 
-	return dbPool, nil
+	return connPool, nil
 }
