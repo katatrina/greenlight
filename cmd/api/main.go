@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Application version number
@@ -16,6 +20,9 @@ const version = "1.0.0"
 type config struct {
 	port int
 	env  string
+	db   struct {
+		dsn string
+	}
 }
 
 // application hold dependencies for our HTTP handlers, helpers, and middlewares.
@@ -30,10 +37,20 @@ func main() {
 	// Read the value of the port and env command-line flags into the config struct.
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
 	flag.Parse()
 
 	// Initialize a new structured logger which writes log entries to the standard out stream.
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	dbPool, err := openDB(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer dbPool.Close()
+
+	logger.Info("database connection pool established")
 
 	app := application{
 		config: cfg,
@@ -55,7 +72,28 @@ func main() {
 	// Start the HTTP server.
 	logger.Info("starting server", "addr", srv.Addr, "env", cfg.env)
 
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	logger.Error(err.Error())
 	os.Exit(1)
+}
+
+// openDB creates a new connection pool to our PostgreSQL database.
+func openDB(cfg config) (*pgxpool.Pool, error) {
+	dbPool, err := pgxpool.New(context.Background(), cfg.db.dsn)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a context with a 5-second timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = dbPool.Ping(ctx)
+	if err != nil {
+		defer dbPool.Close()
+		return nil, err
+	}
+
+	return dbPool, nil
 }
