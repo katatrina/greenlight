@@ -1,7 +1,12 @@
 package db
 
-import "github.com/jackc/pgx/v5"
+import (
+	"errors"
+
+	"github.com/jackc/pgx/v5"
+)
 
 var (
-	ErrRecordNotFound = pgx.ErrNoRows
+	ErrRecordNotFound       = pgx.ErrNoRows
+	ErrInvalidRuntimeFormat = errors.New("invalid runtime format")
 )

@@ -19,7 +19,7 @@ func (app *application) routes() http.Handler {
 	{
 		movieRoutes.POST("", app.createMovieHandler)
 		movieRoutes.GET("/:id", app.showMovieHandler)
-		movieRoutes.PUT("/:id", app.updateMovieHandler)
+		movieRoutes.PATCH("/:id", app.updateMovieHandler)
 		movieRoutes.DELETE("/:id", app.deleteMovieHandler)
 	}
 

@@ -6,7 +6,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/katatrina/greenlight/internal/db"
+	"github.com/katatrina/greenlight/internal/util"
 	"github.com/katatrina/greenlight/internal/validator"
 )
 
@@ -100,29 +102,37 @@ func (app *application) showMovieHandler(ctx *gin.Context) {
 }
 
 type updateMovieRequest struct {
-	Title   string     `json:"title"`
-	Year    int32      `json:"year"`
-	Runtime db.Runtime `json:"runtime"`
-	Genres  []string   `json:"genres"`
+	Title   *string     `json:"title"`
+	Year    *int32      `json:"year"`
+	Runtime *db.Runtime `json:"runtime"`
+	Genres  []string    `json:"genres"`
 }
 
 func validateUpdateMovieRequest(req *updateMovieRequest) validator.Violations {
 	violations := validator.New()
 
-	if err := validator.ValidateMovieTitle(req.Title); err != nil {
-		violations.AddError("title", err.Error())
+	if req.Title != nil {
+		if err := validator.ValidateMovieTitle(*req.Title); err != nil {
+			violations.AddError("title", err.Error())
+		}
 	}
 
-	if err := validator.ValidateMovieYear(req.Year); err != nil {
-		violations.AddError("year", err.Error())
+	if req.Year != nil {
+		if err := validator.ValidateMovieYear(*req.Year); err != nil {
+			violations.AddError("year", err.Error())
+		}
 	}
 
-	if err := validator.ValidateMovieRuntime(int32(req.Runtime)); err != nil {
-		violations.AddError("runtime", err.Error())
+	if req.Runtime != nil {
+		if err := validator.ValidateMovieRuntime(int32(*req.Runtime)); err != nil {
+			violations.AddError("runtime", err.Error())
+		}
 	}
 
-	if err := validator.ValidateMovieGenres(req.Genres); err != nil {
-		violations.AddError("genres", err.Error())
+	if req.Genres != nil {
+		if err := validator.ValidateMovieGenres(req.Genres); err != nil {
+			violations.AddError("genres", err.Error())
+		}
 	}
 
 	return violations
@@ -132,6 +142,17 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 	movieID, err := app.readIDParam(ctx)
 	if err != nil {
 		app.notFoundResponse(ctx)
+		return
+	}
+
+	_, err = app.store.GetMovie(ctx, movieID)
+	if err != nil {
+		if errors.Is(err, db.ErrRecordNotFound) {
+			app.notFoundResponse(ctx)
+			return
+		}
+
+		app.serverErrorResponse(ctx, err)
 		return
 	}
 
@@ -149,19 +170,25 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 		return
 	}
 
-	movie, err := app.store.UpdateMovie(ctx, db.UpdateMovieParams{
-		ID:      movieID,
-		Title:   req.Title,
-		Year:    req.Year,
-		Runtime: req.Runtime,
-		Genres:  req.Genres,
-	})
-	if err != nil {
-		if errors.Is(err, db.ErrRecordNotFound) {
-			app.notFoundResponse(ctx)
-			return
-		}
+	arg := db.UpdateMovieParams{
+		Title: pgtype.Text{
+			String: util.GetNullableString(req.Title),
+			Valid:  req.Title != nil,
+		},
+		Year: pgtype.Int4{
+			Int32: util.GetNullableInt32(req.Year),
+			Valid: req.Year != nil,
+		},
+		Runtime: pgtype.Int4{
+			Int32: int32(util.GetNullableRuntime(req.Runtime)),
+			Valid: req.Runtime != nil,
+		},
+		Genres: req.Genres,
+		ID:     movieID,
+	}
 
+	movie, err := app.store.UpdateMovie(ctx, arg)
+	if err != nil {
 		app.serverErrorResponse(ctx, err)
 		return
 	}

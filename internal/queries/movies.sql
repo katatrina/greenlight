@@ -21,12 +21,12 @@ WHERE id = $1;
 -- name: UpdateMovie :one
 UPDATE movies
 SET
-    title = $2,
-    year = $3,
-    runtime = $4,
-    genres = $5,
+    title = coalesce(sqlc.narg('title'), title),
+    year = coalesce(sqlc.narg('year'), year),
+    runtime = coalesce(sqlc.narg('runtime')::int, runtime),
+    genres = coalesce(sqlc.narg('genres'), genres),
     version = version + 1
-WHERE id = $1
+WHERE id = sqlc.arg('id')
 RETURNING *;
 
 -- name: DeleteMovie :execrows
