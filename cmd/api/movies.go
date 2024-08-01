@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -230,46 +231,51 @@ func (app *application) deleteMovieHandler(ctx *gin.Context) {
 }
 
 type listMoviesRequest struct {
-	Title    *string  `form:"title"`
+	Title    string   `form:"title"`
 	Genres   []string `form:"genres"`
 	PageID   *int32   `form:"page_id"`
 	PageSize *int32   `form:"page_size"`
-	Sort     *string  `form:"sort"`
+	Sort     string   `form:"sort"`
 }
 
+// validateListMoviesRequest validates the listMoviesRequest struct and sets default "fallback" values if necessary.
 func validateListMoviesRequest(req *listMoviesRequest) validator.Violations {
 	violations := validator.New()
 
-	if req.Title == nil {
-		req.Title = new(string)
+	// If the title field is not provided, set it to an empty string.
+	if req.Title == "" {
+		req.Title = ""
 	}
 
+	// If the genres field is not provided, set it to an empty slice.
 	if req.Genres == nil {
 		req.Genres = []string{}
 	}
 
-	if req.PageID == nil {
+	if req.PageID == nil { // If the page_id is not provided, set it to 1.
 		req.PageID = new(int32)
 		*req.PageID = 1
-	} else if *req.PageID < 1 || *req.PageID > 10_000_000 {
+	} else if !(*req.PageID >= 1 && *req.PageID <= 10_000_000) {
 		violations.AddError("page_id", "must be betweeen 1 and 10,000,000")
 	}
 
-	if req.PageSize == nil {
+	if req.PageSize == nil { // If the page_size is not provided, set it to 20.
 		req.PageSize = new(int32)
 		*req.PageSize = 20
-	} else if *req.PageSize < 1 || *req.PageSize > 100 {
+	} else if !(*req.PageSize >= 1 && *req.PageSize <= 100) {
 		violations.AddError("page_size", "must be between 1 and 100")
 	}
 
-	if req.Sort == nil {
-		req.Sort = new(string)
-		*req.Sort = "id"
+	// If the sort field is not provided, set it to "id".
+	if req.Sort == "" {
+		req.Sort = "id"
 	}
 
-	isSortable := util.PermittedValue(*req.Sort, "id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime")
+	// Check if the sort field is one of the permitted values.
+	sortSafeList := []string{"id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime"}
+	isSortable := util.PermittedValue(req.Sort, sortSafeList...)
 	if !isSortable {
-		violations.AddError("sort", "invalid sort field")
+		violations.AddError("sort", fmt.Sprintf("invalid sort value <%s>", req.Sort))
 	}
 
 	return violations
@@ -279,7 +285,7 @@ func validateListMoviesRequest(req *listMoviesRequest) validator.Violations {
 func (app *application) listMoviesHandler(ctx *gin.Context) {
 	var req listMoviesRequest
 
-	err := app.readQuery(ctx, &req)
+	err := app.readQueryParams(ctx, &req)
 	if err != nil {
 		app.badRequestResponse(ctx, err)
 		return
