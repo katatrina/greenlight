@@ -85,3 +85,14 @@ func (app *application) readJSON(ctx *gin.Context, destinaton any) error {
 
 	return nil
 }
+
+// readQuery decode the query string parameters into destination struct.
+func (app *application) readQuery(ctx *gin.Context, destination any) error {
+	err := ctx.ShouldBindQuery(destination)
+	if err != nil {
+		// TODO: Handle error more gracefully
+		return err
+	}
+
+	return nil
+}

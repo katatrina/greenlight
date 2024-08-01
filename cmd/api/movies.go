@@ -228,3 +228,68 @@ func (app *application) deleteMovieHandler(ctx *gin.Context) {
 	rsp := envelop{"message": "movie successfully deleted!"}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
+
+type listMoviesRequest struct {
+	Title    *string  `form:"title"`
+	Genres   []string `form:"genres"`
+	PageID   *int32   `form:"page_id"`
+	PageSize *int32   `form:"page_size"`
+	Sort     *string  `form:"sort"`
+}
+
+func validateListMoviesRequest(req *listMoviesRequest) validator.Violations {
+	violations := validator.New()
+
+	if req.Title == nil {
+		req.Title = new(string)
+	}
+
+	if req.Genres == nil {
+		req.Genres = []string{}
+	}
+
+	if req.PageID == nil {
+		req.PageID = new(int32)
+		*req.PageID = 1
+	} else if *req.PageID < 1 || *req.PageID > 10_000_000 {
+		violations.AddError("page_id", "must be betweeen 1 and 10,000,000")
+	}
+
+	if req.PageSize == nil {
+		req.PageSize = new(int32)
+		*req.PageSize = 20
+	} else if *req.PageSize < 1 || *req.PageSize > 100 {
+		violations.AddError("page_size", "must be between 1 and 100")
+	}
+
+	if req.Sort == nil {
+		req.Sort = new(string)
+		*req.Sort = "id"
+	}
+
+	isSortable := util.PermittedValue(*req.Sort, "id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime")
+	if !isSortable {
+		violations.AddError("sort", "invalid sort field")
+	}
+
+	return violations
+}
+
+// listMoviesHandler show the details of all movies.
+func (app *application) listMoviesHandler(ctx *gin.Context) {
+	var req listMoviesRequest
+
+	err := app.readQuery(ctx, &req)
+	if err != nil {
+		app.badRequestResponse(ctx, err)
+		return
+	}
+
+	violations := validateListMoviesRequest(&req)
+	if !violations.Empty() {
+		app.failedValidationResponse(ctx, violations)
+		return
+	}
+
+	app.writeJSON(ctx, http.StatusOK, req, nil)
+}
