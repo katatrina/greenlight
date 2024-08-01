@@ -138,6 +138,7 @@ func validateUpdateMovieRequest(req *updateMovieRequest) validator.Violations {
 	return violations
 }
 
+// updateMovieHandler update the details of a specific movie.
 func (app *application) updateMovieHandler(ctx *gin.Context) {
 	movieID, err := app.readIDParam(ctx)
 	if err != nil {
@@ -145,7 +146,7 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 		return
 	}
 
-	_, err = app.store.GetMovie(ctx, movieID)
+	movie, err := app.store.GetMovie(ctx, movieID)
 	if err != nil {
 		if errors.Is(err, db.ErrRecordNotFound) {
 			app.notFoundResponse(ctx)
@@ -183,17 +184,25 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 			Int32: int32(util.GetNullableRuntime(req.Runtime)),
 			Valid: req.Runtime != nil,
 		},
-		Genres: req.Genres,
-		ID:     movieID,
+		Genres:  req.Genres,
+		ID:      movieID,
+		Version: movie.Version,
 	}
 
-	movie, err := app.store.UpdateMovie(ctx, arg)
+	updatedMovie, err := app.store.UpdateMovie(ctx, arg)
 	if err != nil {
+		// If no matching row could be found, we know the movie version has changed
+		// (or the record has been deleted) and we return our custom ErrEditConflict error.
+		if errors.Is(err, db.ErrRecordNotFound) {
+			app.editConflictResponse(ctx)
+			return
+		}
+
 		app.serverErrorResponse(ctx, err)
 		return
 	}
 
-	rsp := envelop{"movie": movie}
+	rsp := envelop{"movie": updatedMovie}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
 

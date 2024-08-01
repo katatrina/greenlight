@@ -96,7 +96,7 @@ SET
     runtime = coalesce($3::int, runtime),
     genres = coalesce($4, genres),
     version = version + 1
-WHERE id = $5
+WHERE id = $5 AND version = $6
 RETURNING id, title, runtime, genres, year, version, created_at
 `
 
@@ -106,6 +106,7 @@ type UpdateMovieParams struct {
 	Runtime pgtype.Int4 `json:"runtime"`
 	Genres  []string    `json:"genres"`
 	ID      int64       `json:"id"`
+	Version int32       `json:"version"`
 }
 
 func (q *Queries) UpdateMovie(ctx context.Context, arg UpdateMovieParams) (Movie, error) {
@@ -115,6 +116,7 @@ func (q *Queries) UpdateMovie(ctx context.Context, arg UpdateMovieParams) (Movie
 		arg.Runtime,
 		arg.Genres,
 		arg.ID,
+		arg.Version,
 	)
 	var i Movie
 	err := row.Scan(

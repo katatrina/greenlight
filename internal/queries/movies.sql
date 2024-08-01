@@ -26,7 +26,7 @@ SET
     runtime = coalesce(sqlc.narg('runtime')::int, runtime),
     genres = coalesce(sqlc.narg('genres'), genres),
     version = version + 1
-WHERE id = sqlc.arg('id')
+WHERE id = sqlc.arg('id') AND version = sqlc.arg('version')
 RETURNING *;
 
 -- name: DeleteMovie :execrows

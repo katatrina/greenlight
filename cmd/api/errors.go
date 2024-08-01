@@ -66,3 +66,10 @@ func (app *application) badRequestResponse(ctx *gin.Context, err error) {
 func (app *application) failedValidationResponse(ctx *gin.Context, errors validator.Violations) {
 	app.errorResponse(ctx, http.StatusUnprocessableEntity, errors)
 }
+
+// editConflictResponse send a 409 Conflict status code and JSON response to the client.
+func (app *application) editConflictResponse(ctx *gin.Context) {
+	message := "unable to update the record due to an edit conflict, please try again"
+
+	app.errorResponse(ctx, http.StatusConflict, message)
+}
