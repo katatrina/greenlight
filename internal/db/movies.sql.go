@@ -88,6 +88,47 @@ func (q *Queries) GetMovie(ctx context.Context, id int64) (Movie, error) {
 	return i, err
 }
 
+const listMoviesWithFilters = `-- name: ListMoviesWithFilters :many
+SELECT id, title, runtime, genres, year, version, created_at
+FROM movies
+WHERE ((title ILIKE '%' || $1::text || '%') OR $1 = '')
+AND (genres @> $2 OR $2 = '{}')
+ORDER BY id
+`
+
+type ListMoviesWithFiltersParams struct {
+	Title  string   `json:"title"`
+	Genres []string `json:"genres"`
+}
+
+func (q *Queries) ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithFiltersParams) ([]Movie, error) {
+	rows, err := q.db.Query(ctx, listMoviesWithFilters, arg.Title, arg.Genres)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Movie{}
+	for rows.Next() {
+		var i Movie
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Runtime,
+			&i.Genres,
+			&i.Year,
+			&i.Version,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateMovie = `-- name: UpdateMovie :one
 UPDATE movies
 SET

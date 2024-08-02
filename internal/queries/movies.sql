@@ -32,3 +32,10 @@ RETURNING *;
 -- name: DeleteMovie :execrows
 DELETE FROM movies
 WHERE id = $1;
+
+-- name: ListMoviesWithFilters :many
+SELECT *
+FROM movies
+WHERE ((title ILIKE '%' || sqlc.arg(title)::text || '%') OR sqlc.arg(title) = '')
+AND (genres @> sqlc.arg(genres) OR sqlc.arg(genres) = '{}')
+ORDER BY id;

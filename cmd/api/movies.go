@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -203,7 +204,7 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 		return
 	}
 
-	rsp := envelop{"movie": updatedMovie}
+	rsp := envelop{"updated_movie": updatedMovie}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
 
@@ -250,6 +251,9 @@ func validateListMoviesRequest(req *listMoviesRequest) validator.Violations {
 	// If the genres field is not provided, set it to an empty slice.
 	if req.Genres == nil {
 		req.Genres = []string{}
+	} else { // If the genres field is provided, split the comma-separated string into a slice.
+		// TODO: Think about a better solution to handle this.
+		req.Genres = strings.Split(req.Genres[0], ",")
 	}
 
 	if req.PageID == nil { // If the page_id is not provided, set it to 1.
@@ -297,5 +301,17 @@ func (app *application) listMoviesHandler(ctx *gin.Context) {
 		return
 	}
 
-	app.writeJSON(ctx, http.StatusOK, req, nil)
+	arg := db.ListMoviesWithFiltersParams{
+		Title:  req.Title,
+		Genres: req.Genres,
+	}
+
+	movies, err := app.store.ListMoviesWithFilters(ctx, arg)
+	if err != nil {
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	rsp := envelop{"movies": movies}
+	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }

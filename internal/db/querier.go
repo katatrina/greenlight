@@ -12,6 +12,7 @@ type Querier interface {
 	CreateMovie(ctx context.Context, arg CreateMovieParams) (Movie, error)
 	DeleteMovie(ctx context.Context, id int64) (int64, error)
 	GetMovie(ctx context.Context, id int64) (Movie, error)
+	ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithFiltersParams) ([]Movie, error)
 	UpdateMovie(ctx context.Context, arg UpdateMovieParams) (Movie, error)
 }
 
