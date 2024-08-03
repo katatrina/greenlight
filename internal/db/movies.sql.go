@@ -12,32 +12,22 @@ import (
 )
 
 const createMovie = `-- name: CreateMovie :one
-INSERT INTO movies (
-        title,
-        year,
-        runtime,
-        genres
-    )
-VALUES (
-        $1,
-        $2,
-        $3,
-        $4
-    )
-RETURNING id, title, runtime, genres, year, version, created_at
+INSERT INTO movies ( title, publish_year, runtime, genres)
+VALUES ($1, $2, $3, $4)
+RETURNING id, title, runtime, genres, publish_year, version, created_at
 `
 
 type CreateMovieParams struct {
-	Title   string   `json:"title"`
-	Year    int32    `json:"year"`
-	Runtime Runtime  `json:"runtime"`
-	Genres  []string `json:"genres"`
+	Title       string   `json:"title"`
+	PublishYear int32    `json:"publish_year"`
+	Runtime     Runtime  `json:"runtime"`
+	Genres      []string `json:"genres"`
 }
 
 func (q *Queries) CreateMovie(ctx context.Context, arg CreateMovieParams) (Movie, error) {
 	row := q.db.QueryRow(ctx, createMovie,
 		arg.Title,
-		arg.Year,
+		arg.PublishYear,
 		arg.Runtime,
 		arg.Genres,
 	)
@@ -47,7 +37,7 @@ func (q *Queries) CreateMovie(ctx context.Context, arg CreateMovieParams) (Movie
 		&i.Title,
 		&i.Runtime,
 		&i.Genres,
-		&i.Year,
+		&i.PublishYear,
 		&i.Version,
 		&i.CreatedAt,
 	)
@@ -68,7 +58,7 @@ func (q *Queries) DeleteMovie(ctx context.Context, id int64) (int64, error) {
 }
 
 const getMovie = `-- name: GetMovie :one
-SELECT id, title, runtime, genres, year, version, created_at
+SELECT id, title, runtime, genres, publish_year, version, created_at
 FROM movies
 WHERE id = $1
 `
@@ -81,7 +71,7 @@ func (q *Queries) GetMovie(ctx context.Context, id int64) (Movie, error) {
 		&i.Title,
 		&i.Runtime,
 		&i.Genres,
-		&i.Year,
+		&i.PublishYear,
 		&i.Version,
 		&i.CreatedAt,
 	)
@@ -89,24 +79,24 @@ func (q *Queries) GetMovie(ctx context.Context, id int64) (Movie, error) {
 }
 
 const listMoviesWithFilters = `-- name: ListMoviesWithFilters :many
-SELECT id, title, runtime, genres, year, version, created_at
+SELECT id, title, runtime, genres, publish_year, version, created_at
 FROM movies
 WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
 AND (genres @> $2 OR $2 = '{}')
 ORDER BY CASE
     WHEN NOT $3::boolean AND $4::text = 'id' THEN id
-    WHEN NOT $3::boolean AND $4::text = 'year' THEN year
+    WHEN NOT $3::boolean AND $4::text = 'publishYear' THEN publish_year
     WHEN NOT $3::boolean AND $4::text = 'runtime' THEN runtime
 END ASC, CASE
     WHEN $3::boolean AND $4::text = 'id' THEN id
-    WHEN $3::boolean AND $4::text = 'year' THEN year
+    WHEN $3::boolean AND $4::text = 'publishYear' THEN publish_year
     WHEN $3::boolean AND $4::text = 'runtime' THEN runtime
 END  DESC, CASE
     WHEN NOT $3::boolean AND $4::text = 'title' THEN title
 END ASC, CASE
     WHEN $3::boolean AND $4::text = 'title' THEN title
-END DESC,
-id ASC
+END DESC, id ASC
+LIMIT $6 OFFSET $5
 `
 
 type ListMoviesWithFiltersParams struct {
@@ -114,6 +104,8 @@ type ListMoviesWithFiltersParams struct {
 	Genres  []string `json:"genres"`
 	Reverse bool     `json:"reverse"`
 	OrderBy string   `json:"order_by"`
+	Offset  int32    `json:"offset"`
+	Limit   int32    `json:"limit"`
 }
 
 func (q *Queries) ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithFiltersParams) ([]Movie, error) {
@@ -122,6 +114,8 @@ func (q *Queries) ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithF
 		arg.Genres,
 		arg.Reverse,
 		arg.OrderBy,
+		arg.Offset,
+		arg.Limit,
 	)
 	if err != nil {
 		return nil, err
@@ -135,7 +129,7 @@ func (q *Queries) ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithF
 			&i.Title,
 			&i.Runtime,
 			&i.Genres,
-			&i.Year,
+			&i.PublishYear,
 			&i.Version,
 			&i.CreatedAt,
 		); err != nil {
@@ -153,27 +147,27 @@ const updateMovie = `-- name: UpdateMovie :one
 UPDATE movies
 SET
     title = coalesce($1, title),
-    year = coalesce($2, year),
+    publish_year = coalesce($2, publish_year),
     runtime = coalesce($3::int, runtime),
     genres = coalesce($4, genres),
     version = version + 1
 WHERE id = $5 AND version = $6
-RETURNING id, title, runtime, genres, year, version, created_at
+RETURNING id, title, runtime, genres, publish_year, version, created_at
 `
 
 type UpdateMovieParams struct {
-	Title   pgtype.Text `json:"title"`
-	Year    pgtype.Int4 `json:"year"`
-	Runtime pgtype.Int4 `json:"runtime"`
-	Genres  []string    `json:"genres"`
-	ID      int64       `json:"id"`
-	Version int32       `json:"version"`
+	Title       pgtype.Text `json:"title"`
+	PublishYear pgtype.Int4 `json:"publish_year"`
+	Runtime     pgtype.Int4 `json:"runtime"`
+	Genres      []string    `json:"genres"`
+	ID          int64       `json:"id"`
+	Version     int32       `json:"version"`
 }
 
 func (q *Queries) UpdateMovie(ctx context.Context, arg UpdateMovieParams) (Movie, error) {
 	row := q.db.QueryRow(ctx, updateMovie,
 		arg.Title,
-		arg.Year,
+		arg.PublishYear,
 		arg.Runtime,
 		arg.Genres,
 		arg.ID,
@@ -185,7 +179,7 @@ func (q *Queries) UpdateMovie(ctx context.Context, arg UpdateMovieParams) (Movie
 		&i.Title,
 		&i.Runtime,
 		&i.Genres,
-		&i.Year,
+		&i.PublishYear,
 		&i.Version,
 		&i.CreatedAt,
 	)

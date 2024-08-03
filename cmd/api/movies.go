@@ -15,10 +15,10 @@ import (
 )
 
 type createMovieRequest struct {
-	Title   string     `json:"title"`
-	Year    int32      `json:"year"`
-	Runtime db.Runtime `json:"runtime"`
-	Genres  []string   `json:"genres"`
+	Title       string     `json:"title"`
+	PublishYear int32      `json:"publish_year"`
+	Runtime     db.Runtime `json:"runtime"`
+	Genres      []string   `json:"genres"`
 }
 
 func validateCreateMovieRequest(req *createMovieRequest) validator.Violations {
@@ -28,8 +28,8 @@ func validateCreateMovieRequest(req *createMovieRequest) validator.Violations {
 		violations.AddError("title", err.Error())
 	}
 
-	if err := validator.ValidateMovieYear(req.Year); err != nil {
-		violations.AddError("year", err.Error())
+	if err := validator.ValidateMovieYear(req.PublishYear); err != nil {
+		violations.AddError("publish_year", err.Error())
 	}
 
 	if err := validator.ValidateMovieRuntime(int32(req.Runtime)); err != nil {
@@ -60,10 +60,10 @@ func (app *application) createMovieHandler(ctx *gin.Context) {
 	}
 
 	movie, err := app.store.CreateMovie(ctx, db.CreateMovieParams{
-		Title:   req.Title,
-		Year:    req.Year,
-		Runtime: req.Runtime,
-		Genres:  req.Genres,
+		Title:       req.Title,
+		PublishYear: req.PublishYear,
+		Runtime:     req.Runtime,
+		Genres:      req.Genres,
 	})
 	if err != nil {
 		app.serverErrorResponse(ctx, err)
@@ -104,10 +104,10 @@ func (app *application) showMovieHandler(ctx *gin.Context) {
 }
 
 type updateMovieRequest struct {
-	Title   *string     `json:"title"`
-	Year    *int32      `json:"year"`
-	Runtime *db.Runtime `json:"runtime"`
-	Genres  []string    `json:"genres"`
+	Title       *string     `json:"title"`
+	PublishYear *int32      `json:"publish_year"`
+	Runtime     *db.Runtime `json:"runtime"`
+	Genres      []string    `json:"genres"`
 }
 
 func validateUpdateMovieRequest(req *updateMovieRequest) validator.Violations {
@@ -119,9 +119,9 @@ func validateUpdateMovieRequest(req *updateMovieRequest) validator.Violations {
 		}
 	}
 
-	if req.Year != nil {
-		if err := validator.ValidateMovieYear(*req.Year); err != nil {
-			violations.AddError("year", err.Error())
+	if req.PublishYear != nil {
+		if err := validator.ValidateMovieYear(*req.PublishYear); err != nil {
+			violations.AddError("publish_year", err.Error())
 		}
 	}
 
@@ -178,9 +178,9 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 			String: util.GetNullableString(req.Title),
 			Valid:  req.Title != nil,
 		},
-		Year: pgtype.Int4{
-			Int32: util.GetNullableInt32(req.Year),
-			Valid: req.Year != nil,
+		PublishYear: pgtype.Int4{
+			Int32: util.GetNullableInt32(req.PublishYear),
+			Valid: req.PublishYear != nil,
 		},
 		Runtime: pgtype.Int4{
 			Int32: int32(util.GetNullableRuntime(req.Runtime)),
@@ -235,33 +235,36 @@ func (app *application) deleteMovieHandler(ctx *gin.Context) {
 type listMoviesRequest struct {
 	Title    string   `form:"title"`
 	Genres   []string `form:"genres"`
-	PageID   *int32   `form:"page_id"`
+	Page     *int32   `form:"page"`
 	PageSize *int32   `form:"page_size"`
 	Sort     string   `form:"sort"`
+}
+
+type listMoviesResponse struct {
+	TotalMovies int        `json:"total_movies"` // Total number of movies of the current request.
+	Movies      []db.Movie `json:"movies"`
 }
 
 // validateListMoviesRequest validates the listMoviesRequest struct and sets default "fallback" values if necessary.
 func validateListMoviesRequest(req *listMoviesRequest) validator.Violations {
 	violations := validator.New()
 
-	// If the title field is not provided, set it to an empty string.
-	if req.Title == "" {
-		req.Title = ""
-	}
+	// TODO: Think about a better solution to handle this.
 
 	// If the genres field is not provided, set it to an empty slice.
 	if req.Genres == nil {
 		req.Genres = []string{}
+	} else if req.Genres[0] == "" { // If the genres field is provided but empty, also set it to an empty slice.
+		req.Genres = []string{}
 	} else { // If the genres field is provided, split the comma-separated string into a slice.
-		// TODO: Think about a better solution to handle this.
 		req.Genres = strings.Split(req.Genres[0], ",")
 	}
 
-	if req.PageID == nil { // If the page_id is not provided, set it to 1.
-		req.PageID = new(int32)
-		*req.PageID = 1
-	} else if !(*req.PageID >= 1 && *req.PageID <= 10_000_000) {
-		violations.AddError("page_id", "must be betweeen 1 and 10,000,000")
+	if req.Page == nil { // If the page_id is not provided, set it to 1.
+		req.Page = new(int32)
+		*req.Page = 1
+	} else if !(*req.Page >= 1 && *req.Page <= 10_000_000) {
+		violations.AddError("page", "must be betweeen 1 and 10,000,000")
 	}
 
 	if req.PageSize == nil { // If the page_size is not provided, set it to 20.
@@ -277,7 +280,7 @@ func validateListMoviesRequest(req *listMoviesRequest) validator.Violations {
 	}
 
 	// Check if the sort field is one of the permitted values.
-	sortSafeList := []string{"id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime"}
+	sortSafeList := []string{"id", "title", "publishYear", "runtime", "-id", "-title", "-publishYear", "-runtime"}
 	isSortable := util.PermittedValue(req.Sort, sortSafeList...)
 	if !isSortable {
 		violations.AddError("sort", fmt.Sprintf("invalid sort value <%s>", req.Sort))
@@ -305,8 +308,10 @@ func (app *application) listMoviesHandler(ctx *gin.Context) {
 	arg := db.ListMoviesWithFiltersParams{
 		Title:   req.Title,
 		Genres:  req.Genres,
-		Reverse: strings.HasPrefix(req.Sort, "-"),	
+		Reverse: strings.HasPrefix(req.Sort, "-"),
 		OrderBy: strings.TrimPrefix(req.Sort, "-"),
+		Limit:   *req.PageSize,
+		Offset:  (*req.Page - 1) * *req.PageSize,
 	}
 
 	movies, err := app.store.ListMoviesWithFilters(ctx, arg)
@@ -315,6 +320,10 @@ func (app *application) listMoviesHandler(ctx *gin.Context) {
 		return
 	}
 
-	rsp := envelop{"movies": movies}
+	rsp := listMoviesResponse{
+		TotalMovies: len(movies),
+		Movies:      movies,
+	}
+
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
