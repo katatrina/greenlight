@@ -6,6 +6,6 @@ func PermittedValue[T comparable](value T, permittedValues ...T) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }

@@ -24,7 +24,7 @@ DELETE FROM movies
 WHERE id = $1;
 
 -- name: ListMoviesWithFilters :many
-SELECT *
+SELECT count(*) OVER() as total_records, sqlc.embed(movies)
 FROM movies
 WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', sqlc.arg('title')) OR sqlc.arg('title') = '')
 AND (genres @> sqlc.arg('genres') OR sqlc.arg('genres') = '{}')

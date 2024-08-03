@@ -79,7 +79,7 @@ func (q *Queries) GetMovie(ctx context.Context, id int64) (Movie, error) {
 }
 
 const listMoviesWithFilters = `-- name: ListMoviesWithFilters :many
-SELECT id, title, runtime, genres, publish_year, version, created_at
+SELECT count(*) OVER() as total_records, movies.id, movies.title, movies.runtime, movies.genres, movies.publish_year, movies.version, movies.created_at
 FROM movies
 WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
 AND (genres @> $2 OR $2 = '{}')
@@ -108,7 +108,12 @@ type ListMoviesWithFiltersParams struct {
 	Limit   int32    `json:"limit"`
 }
 
-func (q *Queries) ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithFiltersParams) ([]Movie, error) {
+type ListMoviesWithFiltersRow struct {
+	TotalRecords int64 `json:"total_records"`
+	Movie        Movie `json:"movie"`
+}
+
+func (q *Queries) ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithFiltersParams) ([]ListMoviesWithFiltersRow, error) {
 	rows, err := q.db.Query(ctx, listMoviesWithFilters,
 		arg.Title,
 		arg.Genres,
@@ -121,17 +126,18 @@ func (q *Queries) ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithF
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Movie{}
+	items := []ListMoviesWithFiltersRow{}
 	for rows.Next() {
-		var i Movie
+		var i ListMoviesWithFiltersRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Runtime,
-			&i.Genres,
-			&i.PublishYear,
-			&i.Version,
-			&i.CreatedAt,
+			&i.TotalRecords,
+			&i.Movie.ID,
+			&i.Movie.Title,
+			&i.Movie.Runtime,
+			&i.Movie.Genres,
+			&i.Movie.PublishYear,
+			&i.Movie.Version,
+			&i.Movie.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
