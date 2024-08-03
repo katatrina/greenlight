@@ -208,6 +208,7 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
 
+// deleteMovieHandler delete a specific movie.
 func (app *application) deleteMovieHandler(ctx *gin.Context) {
 	movieID, err := app.readIDParam(ctx)
 	if err != nil {
@@ -285,7 +286,7 @@ func validateListMoviesRequest(req *listMoviesRequest) validator.Violations {
 	return violations
 }
 
-// listMoviesHandler show the details of all movies.
+// listMoviesHandler show the details of filtered movies.
 func (app *application) listMoviesHandler(ctx *gin.Context) {
 	var req listMoviesRequest
 
@@ -302,8 +303,10 @@ func (app *application) listMoviesHandler(ctx *gin.Context) {
 	}
 
 	arg := db.ListMoviesWithFiltersParams{
-		Title:  req.Title,
-		Genres: req.Genres,
+		Title:   req.Title,
+		Genres:  req.Genres,
+		Reverse: strings.HasPrefix(req.Sort, "-"),	
+		OrderBy: strings.TrimPrefix(req.Sort, "-"),
 	}
 
 	movies, err := app.store.ListMoviesWithFilters(ctx, arg)

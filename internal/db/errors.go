@@ -9,5 +9,4 @@ import (
 var (
 	ErrRecordNotFound       = pgx.ErrNoRows
 	ErrInvalidRuntimeFormat = errors.New("invalid runtime format")
-	ErrEditConflict         = errors.New("edit conflict")
 )

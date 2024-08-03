@@ -36,6 +36,19 @@ WHERE id = $1;
 -- name: ListMoviesWithFilters :many
 SELECT *
 FROM movies
-WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', sqlc.arg(title)) OR sqlc.arg(title) = '')
+WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', @title) OR @title = '')
 AND (genres @> sqlc.arg(genres) OR sqlc.arg(genres) = '{}')
-ORDER BY id;
+ORDER BY CASE
+    WHEN NOT @reverse::boolean AND @order_by::text = 'id' THEN id
+    WHEN NOT @reverse::boolean AND @order_by::text = 'year' THEN year
+    WHEN NOT @reverse::boolean AND @order_by::text = 'runtime' THEN runtime
+END ASC, CASE
+    WHEN @reverse::boolean AND @order_by::text = 'id' THEN id
+    WHEN @reverse::boolean AND @order_by::text = 'year' THEN year
+    WHEN @reverse::boolean AND @order_by::text = 'runtime' THEN runtime
+END  DESC, CASE
+    WHEN NOT @reverse::boolean AND sqlc.arg(order_by)::text = 'title' THEN title
+END ASC, CASE
+    WHEN @reverse::boolean AND sqlc.arg(order_by)::text = 'title' THEN title
+END DESC,
+id ASC;

@@ -93,16 +93,36 @@ SELECT id, title, runtime, genres, year, version, created_at
 FROM movies
 WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
 AND (genres @> $2 OR $2 = '{}')
-ORDER BY id
+ORDER BY CASE
+    WHEN NOT $3::boolean AND $4::text = 'id' THEN id
+    WHEN NOT $3::boolean AND $4::text = 'year' THEN year
+    WHEN NOT $3::boolean AND $4::text = 'runtime' THEN runtime
+END ASC, CASE
+    WHEN $3::boolean AND $4::text = 'id' THEN id
+    WHEN $3::boolean AND $4::text = 'year' THEN year
+    WHEN $3::boolean AND $4::text = 'runtime' THEN runtime
+END  DESC, CASE
+    WHEN NOT $3::boolean AND $4::text = 'title' THEN title
+END ASC, CASE
+    WHEN $3::boolean AND $4::text = 'title' THEN title
+END DESC,
+id ASC
 `
 
 type ListMoviesWithFiltersParams struct {
-	Title  string   `json:"title"`
-	Genres []string `json:"genres"`
+	Title   string   `json:"title"`
+	Genres  []string `json:"genres"`
+	Reverse bool     `json:"reverse"`
+	OrderBy string   `json:"order_by"`
 }
 
 func (q *Queries) ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithFiltersParams) ([]Movie, error) {
-	rows, err := q.db.Query(ctx, listMoviesWithFilters, arg.Title, arg.Genres)
+	rows, err := q.db.Query(ctx, listMoviesWithFilters,
+		arg.Title,
+		arg.Genres,
+		arg.Reverse,
+		arg.OrderBy,
+	)
 	if err != nil {
 		return nil, err
 	}
