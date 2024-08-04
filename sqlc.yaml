@@ -14,6 +14,10 @@ sql:
           - column: "movies.runtime"
             go_type:
               type: "Runtime"
+          - column: "users.hashed_password"
+            go_struct_tag: json:"-"
+          - column: "users.version"
+            go_struct_tag: json:"-"
         emit_interface: true
         emit_exact_table_names: false
         emit_empty_slices: true

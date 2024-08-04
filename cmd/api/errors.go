@@ -73,3 +73,8 @@ func (app *application) editConflictResponse(ctx *gin.Context) {
 
 	app.errorResponse(ctx, http.StatusConflict, message)
 }
+
+// integrityConstraintViolationResponse send a 409 Conflict status code and JSON response to the client.
+func (app *application) integrityConstraintViolationResponse(ctx *gin.Context, message string) {
+	app.errorResponse(ctx, http.StatusConflict, message)
+}

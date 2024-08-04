@@ -24,5 +24,10 @@ func (app *application) routes() http.Handler {
 		movieRoutes.DELETE("/:id", app.deleteMovieHandler)
 	}
 
+	userRoutes := router.Group("/v1/users")
+	{
+		userRoutes.POST("", app.registerUserHandler)
+	}
+
 	return router
 }

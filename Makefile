@@ -4,10 +4,13 @@ DB_DSN = $(GREENLIGHT_DB_DSN)
 
 # Define the migration target
 migrate-up:
-	migrate -path $(MIGRATE_PATH) -database $(DB_DSN) up
+	migrate -path $(MIGRATE_PATH) -database $(DB_DSN) -verbose up
 
 migrate-down:
-	migrate -path $(MIGRATE_PATH) -database $(DB_DSN) down
+	migrate -path $(MIGRATE_PATH) -database $(DB_DSN) -verbose down
+
+migrate-down1:
+	migrate -path $(MIGRATE_PATH) -database $(DB_DSN) -verbose down 1
 
 sqlc:
 	sqlc generate

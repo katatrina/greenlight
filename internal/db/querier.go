@@ -10,10 +10,13 @@ import (
 
 type Querier interface {
 	CreateMovie(ctx context.Context, arg CreateMovieParams) (Movie, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteMovie(ctx context.Context, id int64) (int64, error)
 	GetMovie(ctx context.Context, id int64) (Movie, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
 	ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithFiltersParams) ([]ListMoviesWithFiltersRow, error)
 	UpdateMovie(ctx context.Context, arg UpdateMovieParams) (Movie, error)
+	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 }
 
 var _ Querier = (*Queries)(nil)
