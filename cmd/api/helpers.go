@@ -98,3 +98,15 @@ func (app *application) readQueryParams(ctx *gin.Context, destination any) error
 
 	return nil
 }
+
+func (app *application) background(fn func()) {
+	go func() {
+		defer func() {
+			if panicVal := recover(); panicVal != nil {
+				app.logger.Error(fmt.Sprintf("%v", panicVal))
+			}
+		}()
+
+		fn()
+	}()
+}
