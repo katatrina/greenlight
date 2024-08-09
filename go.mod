@@ -5,6 +5,7 @@ go 1.21.1
 require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/jackc/pgx/v5 v5.6.0
+	github.com/wneessen/go-mail v0.4.2
 	golang.org/x/crypto v0.25.0
 )
 

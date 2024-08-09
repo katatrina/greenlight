@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/katatrina/greenlight/internal/db"
+	"github.com/katatrina/greenlight/internal/mailer"
 )
 
 // Application version number
@@ -24,6 +25,12 @@ type config struct {
 	db   struct {
 		dsn string
 	}
+	smtp struct {
+		username    string
+		password    string
+		senderName  string
+		senderEmail string
+	}
 }
 
 // application hold dependencies for our HTTP handlers, helpers, and middlewares.
@@ -31,6 +38,7 @@ type application struct {
 	config config
 	logger *slog.Logger
 	store  db.Store
+	mailer mailer.EmailSender
 }
 
 func main() {
@@ -40,6 +48,12 @@ func main() {
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
+
+	flag.StringVar(&cfg.smtp.username, "mailtrap-smtp-username", os.Getenv("MAILTRAP_SMTP_USERNAME"), "Mailtrap SMTP username")
+	flag.StringVar(&cfg.smtp.password, "mailtrap-smtp-password", os.Getenv("MAILTRAP_SMTP_PASSWORD"), "Mailtrap SMTP password")
+	flag.StringVar(&cfg.smtp.senderName, "smtp-sender-name", "Greenlight", "SMTP sender name")
+	flag.StringVar(&cfg.smtp.senderEmail, "smtp-sender-email", "no-reply@greenlight.katatrina.net", "SMTP sender email address")
+
 	flag.Parse()
 
 	// Initialize a new structured logger which writes log entries to the standard out stream.
@@ -60,6 +74,7 @@ func main() {
 		config: cfg,
 		logger: logger,
 		store:  store,
+		mailer: mailer.NewMailtrapSender(cfg.smtp.username, cfg.smtp.password, cfg.smtp.senderName, cfg.smtp.senderEmail),
 	}
 
 	// Declare a HTTP server which listens on the port provided in the config struct,
