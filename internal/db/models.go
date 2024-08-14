@@ -18,6 +18,13 @@ type Movie struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type Token struct {
+	Hash   []byte    `json:"hash"`
+	UserID int64     `json:"user_id"`
+	Expiry time.Time `json:"expiry"`
+	Scope  string    `json:"scope"`
+}
+
 type User struct {
 	ID             int64     `json:"id"`
 	Name           string    `json:"name"`

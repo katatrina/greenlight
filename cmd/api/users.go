@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/katatrina/greenlight/internal/db"
@@ -81,8 +82,20 @@ func (app *application) registerUserHandler(ctx *gin.Context) {
 		return
 	}
 
+	// After the user record has been created in the database, generate a new activation token for the user.
+	tokenPlaintext, err := app.store.GenerateToken(ctx, user.ID, 3*24*time.Hour, db.ScopeActivation)
+	if err != nil {
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
 	app.background(func() {
-		err = app.mailer.SendEmail("Welcome <3!!!", user, []string{user.Email}, nil, nil, nil, "user_welcome.html")
+		data := map[string]any{
+			"activationToken": tokenPlaintext,
+			"userID":          user.ID,
+		}
+
+		err = app.mailer.SendEmail("Welcome <3!!!", data, []string{user.Email}, nil, nil, nil, "user_welcome.html")
 		if err != nil {
 			app.logger.Error(err.Error())
 		}

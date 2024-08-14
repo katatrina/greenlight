@@ -10,6 +10,7 @@ import (
 
 type Querier interface {
 	CreateMovie(ctx context.Context, arg CreateMovieParams) (Movie, error)
+	CreateToken(ctx context.Context, arg CreateTokenParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteMovie(ctx context.Context, id int64) (int64, error)
 	GetMovie(ctx context.Context, id int64) (Movie, error)
