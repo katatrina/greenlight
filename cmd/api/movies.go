@@ -193,8 +193,8 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 
 	updatedMovie, err := app.store.UpdateMovie(ctx, arg)
 	if err != nil {
-		// If no matching row could be found, we know the movie version has changed
-		// (or the record has been deleted) and we return our custom ErrEditConflict error.
+		// If no matching row could be found, we know the movie's version has changed
+		// (or the record has been deleted) and we we invoke the editConflictResponse method.
 		if errors.Is(err, db.ErrRecordNotFound) {
 			app.editConflictResponse(ctx)
 			return

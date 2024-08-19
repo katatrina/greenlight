@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"errors"
 	"net/http"
 	"time"
 
@@ -105,4 +107,87 @@ func (app *application) registerUserHandler(ctx *gin.Context) {
 	// 202 Accepted status code indicates that the request has been accepted for processing, but
 	// the processing has not been completed.
 	app.writeJSON(ctx, http.StatusAccepted, rsp, nil)
+}
+
+type activateUserRequest struct {
+	TokenPlainText *string `json:"token"`
+}
+
+func validateActivateUserRequest(req *activateUserRequest) validator.Violations {
+	violations := validator.New()
+
+	if req.TokenPlainText == nil {
+		violations.AddError("token", "must be provided")
+	} else if err := validator.ValidateTokenPlaintext(*req.TokenPlainText); err != nil {
+		violations.AddError("token", err.Error())
+	}
+
+	return violations
+}
+
+// activateUserHandler update the user's activated field to true.
+func (app *application) activateUserHandler(ctx *gin.Context) {
+	var req activateUserRequest
+
+	if err := app.readJSON(ctx, &req); err != nil {
+		app.badRequestResponse(ctx, err)
+		return
+	}
+
+	violations := validateActivateUserRequest(&req)
+	if !violations.Empty() {
+		app.failedValidationResponse(ctx, violations)
+		return
+	}
+
+	tokenHash := sha256.Sum256([]byte(*req.TokenPlainText))
+
+	// Retrieve the details of the user associated with the token.
+	// If no matching row is found, then we let the client know that the token they provided is not valid.
+	user, err := app.store.GetUserByToken(ctx, db.GetUserByTokenParams{
+		Hash:  tokenHash[:],
+		Scope: db.ScopeActivation,
+	})
+	if err != nil {
+		if errors.Is(err, db.ErrRecordNotFound) {
+			violations.AddError("token", "invalid or expired activation token")
+			app.failedValidationResponse(ctx, violations)
+			return
+		}
+
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	activatedUser, err := app.store.ActivateUser(ctx, db.ActivateUserParams{
+		UserID:  user.ID,
+		Version: user.Version,
+	})
+	if err != nil {
+		// If no matching row could be found, we know the user's version has changed
+		// (or the record has been deleted) and we invoke the editConflictResponse method.
+		if errors.Is(err, db.ErrRecordNotFound) {
+			app.editConflictResponse(ctx)
+			return
+		}
+
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	// If everything went successfully, then we delete all activation tokens of the user.
+	err = app.store.DeleteUserTokens(ctx, db.DeleteUserTokensParams{
+		UserID: activatedUser.ID,
+		Scope:  db.ScopeActivation,
+	})
+	if err != nil {
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	// TODO: Maybe using an atomic transaction for all above queries.
+
+	// Send the activated user details to the client in a JSON response.
+	rsp := envelop{"user": activatedUser}
+	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }

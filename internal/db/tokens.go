@@ -12,7 +12,7 @@ const (
 	ScopeActivation = "activation"
 )
 
-func (store *SQLStore) GenerateToken(ctx context.Context, userID int64, ttl time.Duration, scope string) (tokenPlaintext string, err error) {
+func (store *SQLStore) GenerateToken(ctx context.Context, userID int64, duration time.Duration, scope string) (tokenPlaintext string, err error) {
 	randomBytes := make([]byte, 16)
 
 	_, err = rand.Read(randomBytes)
@@ -37,10 +37,10 @@ func (store *SQLStore) GenerateToken(ctx context.Context, userID int64, ttl time
 	hash := sha256.Sum256([]byte(tokenPlaintext))
 
 	arg := CreateTokenParams{
-		Hash:   hash[:],
-		UserID: userID,
-		Expiry: time.Now().Add(ttl),
-		Scope:  scope,
+		Hash:      hash[:],
+		UserID:    userID,
+		ExpiredAt: time.Now().Add(duration),
+		Scope:     scope,
 	}
 
 	err = store.CreateToken(ctx, arg)

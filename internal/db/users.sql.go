@@ -9,6 +9,35 @@ import (
 	"context"
 )
 
+const activateUser = `-- name: ActivateUser :one
+UPDATE users
+SET 
+    activated = true,
+    version = version + 1
+WHERE id = $1 AND version = $2
+RETURNING id, name, email, hashed_password, activated, version, created_at
+`
+
+type ActivateUserParams struct {
+	UserID  int64 `json:"user_id"`
+	Version int32 `json:"-"`
+}
+
+func (q *Queries) ActivateUser(ctx context.Context, arg ActivateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, activateUser, arg.UserID, arg.Version)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.HashedPassword,
+		&i.Activated,
+		&i.Version,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (name, email, hashed_password, activated)
 VALUES ($1, $2, $3, $4)
@@ -61,36 +90,22 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	return i, err
 }
 
-const updateUser = `-- name: UpdateUser :one
-UPDATE users
-SET 
-    name = $2,
-    email = $3,
-    hashed_password = $4,
-    activated = $5,
-    version = version + 1
-WHERE id = $1 AND version = $6
-RETURNING id, name, email, hashed_password, activated, version, created_at
+const getUserByToken = `-- name: GetUserByToken :one
+SELECT users.id, users.name, users.email, users.hashed_password, users.activated, users.version, users.created_at
+FROM users
+    INNER JOIN tokens ON users.id = tokens.user_id
+WHERE tokens.hash = $1
+    AND tokens.scope = $2
+    AND tokens.expired_at > now()
 `
 
-type UpdateUserParams struct {
-	ID             int64  `json:"id"`
-	Name           string `json:"name"`
-	Email          string `json:"email"`
-	HashedPassword []byte `json:"-"`
-	Activated      bool   `json:"activated"`
-	Version        int32  `json:"-"`
+type GetUserByTokenParams struct {
+	Hash  []byte `json:"hash"`
+	Scope string `json:"scope"`
 }
 
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUser,
-		arg.ID,
-		arg.Name,
-		arg.Email,
-		arg.HashedPassword,
-		arg.Activated,
-		arg.Version,
-	)
+func (q *Queries) GetUserByToken(ctx context.Context, arg GetUserByTokenParams) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByToken, arg.Hash, arg.Scope)
 	var i User
 	err := row.Scan(
 		&i.ID,

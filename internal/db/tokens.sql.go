@@ -11,24 +11,38 @@ import (
 )
 
 const createToken = `-- name: CreateToken :exec
-INSERT INTO tokens (hash, user_id, expiry, scope)
+INSERT INTO tokens (user_id, hash, scope, expired_at)
 VALUES ($1, $2, $3, $4)
 `
 
 type CreateTokenParams struct {
-	Hash   []byte    `json:"hash"`
-	UserID int64     `json:"user_id"`
-	Expiry time.Time `json:"expiry"`
-	Scope  string    `json:"scope"`
+	UserID    int64     `json:"user_id"`
+	Hash      []byte    `json:"hash"`
+	Scope     string    `json:"scope"`
+	ExpiredAt time.Time `json:"expired_at"`
 }
 
 func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) error {
 	_, err := q.db.Exec(ctx, createToken,
-		arg.Hash,
 		arg.UserID,
-		arg.Expiry,
+		arg.Hash,
 		arg.Scope,
+		arg.ExpiredAt,
 	)
-	
+	return err
+}
+
+const deleteUserTokens = `-- name: DeleteUserTokens :exec
+DELETE FROM tokens
+WHERE user_id = $1 AND scope = $2
+`
+
+type DeleteUserTokensParams struct {
+	UserID int64  `json:"user_id"`
+	Scope  string `json:"scope"`
+}
+
+func (q *Queries) DeleteUserTokens(ctx context.Context, arg DeleteUserTokensParams) error {
+	_, err := q.db.Exec(ctx, deleteUserTokens, arg.UserID, arg.Scope)
 	return err
 }

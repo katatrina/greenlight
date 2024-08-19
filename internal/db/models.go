@@ -19,10 +19,11 @@ type Movie struct {
 }
 
 type Token struct {
-	Hash   []byte    `json:"hash"`
-	UserID int64     `json:"user_id"`
-	Expiry time.Time `json:"expiry"`
-	Scope  string    `json:"scope"`
+	UserID    int64     `json:"user_id"`
+	Hash      []byte    `json:"hash"`
+	Scope     string    `json:"scope"`
+	ExpiredAt time.Time `json:"expired_at"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type User struct {

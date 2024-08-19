@@ -27,6 +27,7 @@ func (app *application) routes() http.Handler {
 	userRoutes := router.Group("/v1/users")
 	{
 		userRoutes.POST("", app.registerUserHandler)
+		userRoutes.PUT("/activated", app.activateUserHandler)
 	}
 
 	return router

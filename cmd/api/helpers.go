@@ -25,7 +25,7 @@ func (app *application) readIDParam(ctx *gin.Context) (int64, error) {
 	return id, nil
 }
 
-// writeJSON take the request context, the HTTP status code to send, the data must be a struct or a map to be encoded to JSON, and a
+// writeJSON take the request context, the HTTP status code to send, the data must be a struct or a map to be encoded to JSON response body, and a
 // header map containing any additional HTTP headers we want to include in the response.
 func (app *application) writeJSON(ctx *gin.Context, statusCode int, data any, headers map[string]string) {
 	for key, value := range headers {

@@ -9,15 +9,17 @@ import (
 )
 
 type Querier interface {
+	ActivateUser(ctx context.Context, arg ActivateUserParams) (User, error)
 	CreateMovie(ctx context.Context, arg CreateMovieParams) (Movie, error)
 	CreateToken(ctx context.Context, arg CreateTokenParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteMovie(ctx context.Context, id int64) (int64, error)
+	DeleteUserTokens(ctx context.Context, arg DeleteUserTokensParams) error
 	GetMovie(ctx context.Context, id int64) (Movie, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByToken(ctx context.Context, arg GetUserByTokenParams) (User, error)
 	ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithFiltersParams) ([]ListMoviesWithFiltersRow, error)
 	UpdateMovie(ctx context.Context, arg UpdateMovieParams) (Movie, error)
-	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 }
 
 var _ Querier = (*Queries)(nil)
