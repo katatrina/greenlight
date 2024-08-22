@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-const createToken = `-- name: CreateToken :exec
+const createToken = `-- name: CreateToken :one
 INSERT INTO tokens (user_id, hash, scope, expired_at)
-VALUES ($1, $2, $3, $4)
+VALUES ($1, $2, $3, $4) RETURNING user_id, hash, scope, expired_at, created_at
 `
 
 type CreateTokenParams struct {
@@ -22,14 +22,22 @@ type CreateTokenParams struct {
 	ExpiredAt time.Time `json:"expired_at"`
 }
 
-func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) error {
-	_, err := q.db.Exec(ctx, createToken,
+func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) (Token, error) {
+	row := q.db.QueryRow(ctx, createToken,
 		arg.UserID,
 		arg.Hash,
 		arg.Scope,
 		arg.ExpiredAt,
 	)
-	return err
+	var i Token
+	err := row.Scan(
+		&i.UserID,
+		&i.Hash,
+		&i.Scope,
+		&i.ExpiredAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const deleteUserTokens = `-- name: DeleteUserTokens :exec

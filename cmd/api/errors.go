@@ -63,8 +63,8 @@ func (app *application) badRequestResponse(ctx *gin.Context, err error) {
 }
 
 // failedValidationResponse send a 422 Unprocessable Entity status code and JSON response to the client.
-func (app *application) failedValidationResponse(ctx *gin.Context, errors validator.Violations) {
-	app.errorResponse(ctx, http.StatusUnprocessableEntity, errors)
+func (app *application) failedValidationResponse(ctx *gin.Context, violations validator.Violations) {
+	app.errorResponse(ctx, http.StatusUnprocessableEntity, violations)
 }
 
 // editConflictResponse send a 409 Conflict status code and JSON response to the client.
@@ -77,4 +77,11 @@ func (app *application) editConflictResponse(ctx *gin.Context) {
 // integrityConstraintViolationResponse send a 409 Conflict status code and JSON response to the client.
 func (app *application) integrityConstraintViolationResponse(ctx *gin.Context, message string) {
 	app.errorResponse(ctx, http.StatusConflict, message)
+}
+
+// invalidCrendentialsReponse send 401 Unauthorized status code and a generic error message to the client.
+func (app *application) invalidCredentialsResponse(ctx *gin.Context) {
+	message := "invalid authentication credentials"
+
+	app.errorResponse(ctx, http.StatusUnauthorized, message)
 }

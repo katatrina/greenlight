@@ -9,15 +9,16 @@ import (
 )
 
 const (
-	ScopeActivation = "activation"
+	ScopeActivation     = "activation"
+	ScopeAuthentication = "authentication"
 )
 
-func (store *SQLStore) GenerateToken(ctx context.Context, userID int64, duration time.Duration, scope string) (tokenPlaintext string, err error) {
+func (store *SQLStore) GenerateToken(ctx context.Context, userID int64, duration time.Duration, scope string) (tokenPlaintext string, token Token, err error) {
 	randomBytes := make([]byte, 16)
 
 	_, err = rand.Read(randomBytes)
 	if err != nil {
-		return "", err
+		return "", token, err
 	}
 
 	// Encode the byte slice to a base-32-encoded string and assign it to the token
@@ -43,10 +44,10 @@ func (store *SQLStore) GenerateToken(ctx context.Context, userID int64, duration
 		Scope:     scope,
 	}
 
-	err = store.CreateToken(ctx, arg)
+	token, err = store.CreateToken(ctx, arg)
 	if err != nil {
-		return "", err
+		return "", token, err
 	}
 
-	return tokenPlaintext, nil
+	return tokenPlaintext, token, nil
 }

@@ -35,7 +35,7 @@ func validateRegisterUserRequest(req *registerUserRequest) validator.Violations 
 
 	if req.Password == nil {
 		violations.AddError("password", "must be provided")
-	} else if err := validator.ValidateUserPassword(*req.Password); err != nil {
+	} else if err := validator.ValidateUserPasswordPlaintext(*req.Password); err != nil {
 		violations.AddError("password", err.Error())
 	}
 
@@ -85,7 +85,7 @@ func (app *application) registerUserHandler(ctx *gin.Context) {
 	}
 
 	// After the user record has been created in the database, generate a new activation token for the user.
-	tokenPlaintext, err := app.store.GenerateToken(ctx, user.ID, 3*24*time.Hour, db.ScopeActivation)
+	tokenPlaintext, _, err := app.store.GenerateToken(ctx, user.ID, 3*24*time.Hour, db.ScopeActivation)
 	if err != nil {
 		app.serverErrorResponse(ctx, err)
 		return
@@ -185,7 +185,7 @@ func (app *application) activateUserHandler(ctx *gin.Context) {
 		return
 	}
 
-	// TODO: Maybe using an atomic transaction for all above queries.
+	// TODO: Maybe using an atomic transaction for all above queries could be better.
 
 	// Send the activated user details to the client in a JSON response.
 	rsp := envelop{"user": activatedUser}

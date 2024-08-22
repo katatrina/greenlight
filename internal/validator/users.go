@@ -34,7 +34,7 @@ func ValidateUserEmail(value string) error {
 	return nil
 }
 
-func ValidateUserPassword(value string) error {
+func ValidateUserPasswordPlaintext(value string) error {
 	if err := ValidateStringLength(value, 8, 72); err != nil {
 		return err
 	}

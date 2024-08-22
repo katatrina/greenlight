@@ -1,6 +1,6 @@
--- name: CreateToken :exec
+-- name: CreateToken :one
 INSERT INTO tokens (user_id, hash, scope, expired_at)
-VALUES ($1, $2, $3, $4);
+VALUES ($1, $2, $3, $4) RETURNING *;
 
 -- name: DeleteUserTokens :exec
 DELETE FROM tokens

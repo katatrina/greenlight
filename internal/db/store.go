@@ -9,7 +9,7 @@ import (
 
 type Store interface {
 	Querier
-	GenerateToken(ctx context.Context, userID int64, ttl time.Duration, scope string) (tokenPlaintext string, err error)
+	GenerateToken(ctx context.Context, userID int64, duration time.Duration, scope string) (tokenPlaintext string, token Token, err error)
 }
 
 type SQLStore struct {

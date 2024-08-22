@@ -30,5 +30,7 @@ func (app *application) routes() http.Handler {
 		userRoutes.PUT("/activated", app.activateUserHandler)
 	}
 
+	router.POST("/v1/tokens/authentication", app.createAuthenticationTokenHandler)
+
 	return router
 }
