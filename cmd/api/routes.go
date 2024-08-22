@@ -9,6 +9,7 @@ import (
 func (app *application) routes() http.Handler {
 	// Initialize a new gin router instance.
 	router := gin.Default()
+	router.Use(app.authenticate()) // we want to authenticate user on all requests.
 	router.HandleMethodNotAllowed = true
 	router.NoMethod(app.methodNotAllowedResponse)
 	router.NoRoute(app.notFoundResponse)

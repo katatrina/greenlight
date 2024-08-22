@@ -85,3 +85,12 @@ func (app *application) invalidCredentialsResponse(ctx *gin.Context) {
 
 	app.errorResponse(ctx, http.StatusUnauthorized, message)
 }
+
+// invalidAuthenticationTokenResponse send 401 Unauthorized status code and a generic error message to the client.
+func (app *application) invalidAuthenticationTokenResponse(ctx *gin.Context) {
+	ctx.Header("WWW-Authenticate", "Bearer")
+
+	message := "invalid or missing authentication token"
+
+	app.errorResponse(ctx, http.StatusUnauthorized, message)
+}
