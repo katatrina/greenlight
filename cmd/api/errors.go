@@ -94,3 +94,17 @@ func (app *application) invalidAuthenticationTokenResponse(ctx *gin.Context) {
 
 	app.errorResponse(ctx, http.StatusUnauthorized, message)
 }
+
+// authenticatedUserRequiredResponse send 401 Unauthorized status code and a generic error message to the client.
+func (app *application) authenticatedUserRequiredResponse(ctx *gin.Context) {
+	message := "you must be an authenticated user in order to access this resource"
+
+	app.errorResponse(ctx, http.StatusUnauthorized, message)
+}
+
+// activatedAccountRequiredResponse send 403 Forbidden status code and a generic error message to the client.
+func (app *application) activatedAccountRequiredResponse(ctx *gin.Context) {
+	message := "your user account must be activated to access this resource"
+
+	app.errorResponse(ctx, http.StatusForbidden, message)
+}

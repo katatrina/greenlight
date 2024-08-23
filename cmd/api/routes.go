@@ -9,14 +9,15 @@ import (
 func (app *application) routes() http.Handler {
 	// Initialize a new gin router instance.
 	router := gin.Default()
-	router.Use(app.authenticate()) // we want to authenticate user on all requests.
 	router.HandleMethodNotAllowed = true
 	router.NoMethod(app.methodNotAllowedResponse)
 	router.NoRoute(app.notFoundResponse)
 
+	router.Use(app.authenticate()) // we want to authenticate user on all requests.
+
 	router.GET("/v1/healthcheck", app.healthcheckHandler)
 
-	movieRoutes := router.Group("/v1/movies")
+	movieRoutes := router.Group("/v1/movies", app.requireAuthenticatedUser(), app.requireActivatedUser())
 	{
 		movieRoutes.POST("", app.createMovieHandler)
 		movieRoutes.GET("/:id", app.showMovieHandler)

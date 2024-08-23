@@ -10,7 +10,7 @@ import (
 	"github.com/katatrina/greenlight/internal/validator"
 )
 
-// authenticate indicates which user a request is coming from.
+// authenticate middleware indicates which user a request is coming from, either an authenticated user or an anonymous user.
 func (app *application) authenticate() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// Add the "Vary: Authorization" header to the response. This indicates to any
@@ -75,6 +75,40 @@ func (app *application) authenticate() gin.HandlerFunc {
 
 		// Add the user information to the request context.
 		app.contextSetUser(ctx, &user)
+
+		ctx.Next()
+	}
+}
+
+// requireActivatedUser middleware restricts access to activated user accounts.
+func (app *application) requireActivatedUser() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// Retrieve the user information from the request context.
+		user := app.contextGetUser(ctx)
+
+		// If the user account is not activated, we inform them that they need to activate their account.
+		if !user.Activated {
+			app.activatedAccountRequiredResponse(ctx)
+			ctx.Abort()
+			return
+		}
+
+		ctx.Next()
+	}
+}
+
+// requireAuthenticatedUser middleware restricts access to authenticated users.
+func (app *application) requireAuthenticatedUser() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// Retrieve the user information from the request context.
+		user := app.contextGetUser(ctx)
+
+		// If the user is anonymous, we inform the client that they should authenticate before trying again.
+		if user.IsAnonymous() {
+			app.authenticatedUserRequiredResponse(ctx)
+			ctx.Abort()
+			return
+		}
 
 		ctx.Next()
 	}
