@@ -22,3 +22,7 @@ sql:
         emit_exact_table_names: false
         emit_empty_slices: true
         emit_json_tags: true
+overrides:
+  go:
+    rename:
+      users_permission: UserPermission

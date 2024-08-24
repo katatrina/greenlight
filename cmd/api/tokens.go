@@ -86,7 +86,7 @@ func (app *application) createAuthenticationTokenHandler(ctx *gin.Context) {
 	rsp := envelop{
 		"authentication_token": createAuthenticationTokenResponse{
 			TokenPlaintext: tokenPlaintext,
-			ExpiredAt:      token.ExpiredAt,
+			ExpiredAt:      token.ExpiresAt,
 		},
 	}
 	app.writeJSON(ctx, http.StatusCreated, rsp, nil)

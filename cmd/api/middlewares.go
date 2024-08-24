@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -36,7 +37,7 @@ func (app *application) authenticate() gin.HandlerFunc {
 		// "Bearer <token>". We try to split this into its constituent parts, and if the
 		// header isn't in the expected format we return a 401 Unauthorized response.
 		headerParts := strings.Split(authorizationHeader, " ")
-		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" || headerParts[1] == "" {
 			app.invalidAuthenticationTokenResponse(ctx)
 			ctx.Abort()
 			return
@@ -110,6 +111,33 @@ func (app *application) requireAuthenticatedUser() gin.HandlerFunc {
 			return
 		}
 
+		ctx.Next()
+	}
+}
+
+// requirePermission middleware restricts access to users with the appropriate permission.
+func (app *application) requirePermission(code string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// Retrieve the user from the request context.
+		user := app.contextGetUser(ctx)
+
+		// Get a slice of permissions for the user.
+		permissions, err := app.store.GetUserPermissions(ctx, user.ID)
+		if err != nil {
+			app.serverErrorResponse(ctx, err)
+			ctx.Abort()
+			return
+		}
+
+		// Check if the slice includes the required permission. If it doesn't, then
+		// return a 403 Forbidden response.
+		if !slices.Contains(permissions, code) {
+			app.notPermittedResponse(ctx)
+			ctx.Abort()
+			return
+		}
+
+		// Otherwise they have the required permission so we call the next handler in the chain.
 		ctx.Next()
 	}
 }

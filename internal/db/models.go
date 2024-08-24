@@ -18,11 +18,16 @@ type Movie struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type Permission struct {
+	ID   int64  `json:"id"`
+	Code string `json:"code"`
+}
+
 type Token struct {
 	UserID    int64     `json:"user_id"`
 	Hash      []byte    `json:"hash"`
 	Scope     string    `json:"scope"`
-	ExpiredAt time.Time `json:"expired_at"`
+	ExpiresAt time.Time `json:"expires_at"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -34,4 +39,9 @@ type User struct {
 	Activated      bool      `json:"activated"`
 	Version        int32     `json:"-"`
 	CreatedAt      time.Time `json:"created_at"`
+}
+
+type UserPermission struct {
+	UserID       int64 `json:"user_id"`
+	PermissionID int64 `json:"permission_id"`
 }

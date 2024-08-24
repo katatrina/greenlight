@@ -18,6 +18,7 @@ type Querier interface {
 	GetMovie(ctx context.Context, id int64) (Movie, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByToken(ctx context.Context, arg GetUserByTokenParams) (User, error)
+	GetUserPermissions(ctx context.Context, id int64) ([]string, error)
 	ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithFiltersParams) ([]ListMoviesWithFiltersRow, error)
 	UpdateMovie(ctx context.Context, arg UpdateMovieParams) (Movie, error)
 }

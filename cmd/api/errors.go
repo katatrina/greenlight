@@ -108,3 +108,10 @@ func (app *application) activatedAccountRequiredResponse(ctx *gin.Context) {
 
 	app.errorResponse(ctx, http.StatusForbidden, message)
 }
+
+// notPermittedResponse send 403 Forbidden status code and a generic error message to the client.
+func (app *application) notPermittedResponse(ctx *gin.Context) {
+	message := "your user account doesn't have the necessary permissions to access this resource"
+
+	app.errorResponse(ctx, http.StatusForbidden, message)
+}

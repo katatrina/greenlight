@@ -6,6 +6,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	movieReadPermissionCode  = "movies:read"
+	movieWritePermissionCode = "movies:write"
+)
+
 func (app *application) routes() http.Handler {
 	// Initialize a new gin router instance.
 	router := gin.Default()
@@ -19,11 +24,11 @@ func (app *application) routes() http.Handler {
 
 	movieRoutes := router.Group("/v1/movies", app.requireAuthenticatedUser(), app.requireActivatedUser())
 	{
-		movieRoutes.POST("", app.createMovieHandler)
-		movieRoutes.GET("/:id", app.showMovieHandler)
-		movieRoutes.GET("", app.listMoviesHandler)
-		movieRoutes.PATCH("/:id", app.updateMovieHandler)
-		movieRoutes.DELETE("/:id", app.deleteMovieHandler)
+		movieRoutes.POST("", app.requirePermission(movieWritePermissionCode), app.createMovieHandler)
+		movieRoutes.GET("/:id", app.requirePermission(movieReadPermissionCode), app.showMovieHandler)
+		movieRoutes.GET("", app.requirePermission(movieReadPermissionCode), app.listMoviesHandler)
+		movieRoutes.PATCH("/:id", app.requirePermission(movieWritePermissionCode), app.updateMovieHandler)
+		movieRoutes.DELETE("/:id", app.requirePermission(movieWritePermissionCode), app.deleteMovieHandler)
 	}
 
 	userRoutes := router.Group("/v1/users")

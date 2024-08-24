@@ -40,7 +40,7 @@ func (store *SQLStore) GenerateToken(ctx context.Context, userID int64, duration
 	arg := CreateTokenParams{
 		Hash:      hash[:],
 		UserID:    userID,
-		ExpiredAt: time.Now().Add(duration),
+		ExpiresAt: time.Now().Add(duration),
 		Scope:     scope,
 	}
 

@@ -11,15 +11,15 @@ import (
 )
 
 const createToken = `-- name: CreateToken :one
-INSERT INTO tokens (user_id, hash, scope, expired_at)
-VALUES ($1, $2, $3, $4) RETURNING user_id, hash, scope, expired_at, created_at
+INSERT INTO tokens (user_id, hash, scope, expires_at)
+VALUES ($1, $2, $3, $4) RETURNING user_id, hash, scope, expires_at, created_at
 `
 
 type CreateTokenParams struct {
 	UserID    int64     `json:"user_id"`
 	Hash      []byte    `json:"hash"`
 	Scope     string    `json:"scope"`
-	ExpiredAt time.Time `json:"expired_at"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) (Token, error) {
@@ -27,14 +27,14 @@ func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) (Token
 		arg.UserID,
 		arg.Hash,
 		arg.Scope,
-		arg.ExpiredAt,
+		arg.ExpiresAt,
 	)
 	var i Token
 	err := row.Scan(
 		&i.UserID,
 		&i.Hash,
 		&i.Scope,
-		&i.ExpiredAt,
+		&i.ExpiresAt,
 		&i.CreatedAt,
 	)
 	return i, err
