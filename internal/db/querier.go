@@ -10,6 +10,7 @@ import (
 
 type Querier interface {
 	ActivateUser(ctx context.Context, arg ActivateUserParams) (User, error)
+	AddPermissionsForUser(ctx context.Context, arg AddPermissionsForUserParams) error
 	CreateMovie(ctx context.Context, arg CreateMovieParams) (Movie, error)
 	CreateToken(ctx context.Context, arg CreateTokenParams) (Token, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)

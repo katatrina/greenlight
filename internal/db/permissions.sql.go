@@ -9,6 +9,22 @@ import (
 	"context"
 )
 
+const addPermissionsForUser = `-- name: AddPermissionsForUser :exec
+INSERT INTO users_permissions (user_id, permission_id)
+SELECT $1::bigint, permissions.id FROM permissions
+    WHERE permissions.code = ANY($2::text[])
+`
+
+type AddPermissionsForUserParams struct {
+	UserID          int64    `json:"user_id"`
+	PermissionCodes []string `json:"permission_codes"`
+}
+
+func (q *Queries) AddPermissionsForUser(ctx context.Context, arg AddPermissionsForUserParams) error {
+	_, err := q.db.Exec(ctx, addPermissionsForUser, arg.UserID, arg.PermissionCodes)
+	return err
+}
+
 const getUserPermissions = `-- name: GetUserPermissions :many
 SELECT permissions.code
 FROM permissions

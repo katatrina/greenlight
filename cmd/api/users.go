@@ -84,6 +84,15 @@ func (app *application) registerUserHandler(ctx *gin.Context) {
 		return
 	}
 
+	err = app.store.AddPermissionsForUser(ctx, db.AddPermissionsForUserParams{
+		UserID:          user.ID,
+		PermissionCodes: []string{movieReadPermissionCode},
+	})
+	if err != nil {
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
 	// After the user record has been created in the database, generate a new activation token for the user.
 	tokenPlaintext, _, err := app.store.GenerateToken(ctx, user.ID, 3*24*time.Hour, db.ScopeActivation)
 	if err != nil {
