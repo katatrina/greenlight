@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"log"
 
 	"github.com/wneessen/go-mail"
 )
@@ -32,16 +33,20 @@ type EmailSender interface {
 }
 
 type MailtrapSender struct {
-	username         string
-	password         string
+	client           *mail.Client
 	fromEmailName    string
 	fromEmailAddress string
 }
 
 func NewMailtrapSender(username, password, fromEmailName, fromEmailAddress string) EmailSender {
+	client, err := mail.NewClient(smtpMailtrapHost, mail.WithPort(smtpMailtrapPort), mail.WithSMTPAuth(mail.SMTPAuthPlain),
+		mail.WithUsername(username), mail.WithPassword(password))
+	if err != nil {
+		log.Println(err)
+	}
+
 	return &MailtrapSender{
-		username,
-		password,
+		client,
 		fromEmailName,
 		fromEmailAddress,
 	}
@@ -56,12 +61,15 @@ func (sender *MailtrapSender) SendEmail(
 	attachFiles []string,
 	htmlTemplateFile string,
 ) error {
+	// Initialize a new mail
 	m := mail.NewMsg()
 
 	tmpl, err := template.New("email").ParseFS(templateFS, "templates/"+htmlTemplateFile)
 	if err != nil {
 		return fmt.Errorf("failed to parse template files %w", err)
 	}
+
+	// Prepare mail headers
 
 	err = m.FromFormat(sender.fromEmailName, sender.fromEmailAddress)
 	if err != nil {
@@ -82,6 +90,8 @@ func (sender *MailtrapSender) SendEmail(
 		return fmt.Errorf("failed to set Bcc addresses: %w", err)
 	}
 
+	// Prepare mail body
+
 	for _, v := range attachFiles {
 		m.AttachFile(v)
 	}
@@ -101,13 +111,8 @@ func (sender *MailtrapSender) SendEmail(
 	m.SetBodyString(mail.TypeTextHTML, htmlBody.String())
 	m.AddAlternativeString(mail.TypeTextPlain, plainBody.String())
 
-	c, err := mail.NewClient(smtpMailtrapHost, mail.WithPort(smtpMailtrapPort), mail.WithSMTPAuth(mail.SMTPAuthPlain),
-		mail.WithUsername(sender.username), mail.WithPassword(sender.password))
-	if err != nil {
-		return fmt.Errorf("failed to create mail client: %w", err)
-	}
-
-	if err := c.DialAndSend(m); err != nil {
+	// Send mail
+	if err := sender.client.DialAndSend(m); err != nil {
 		return fmt.Errorf("failed to send mail: %w", err)
 	}
 
