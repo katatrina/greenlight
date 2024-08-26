@@ -35,9 +35,15 @@ func (app *application) routes() http.Handler {
 	{
 		userRoutes.POST("", app.registerUserHandler)
 		userRoutes.PUT("/activated", app.activateUserHandler)
+		// userRoutes.PUT("/password", app.updateUserPasswordHandler)
 	}
 
-	router.POST("/v1/tokens/authentication", app.createAuthenticationTokenHandler)
+	tokenRoutes := router.Group("/v1/tokens")
+	{
+		tokenRoutes.POST("/authentication", app.createAuthenticationTokenHandler) // login
+
+		tokenRoutes.POST("/password-reset", app.createPasswordResetTokenHandler)
+	}
 
 	return router
 }

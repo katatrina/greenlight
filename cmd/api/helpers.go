@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type envelop map[string]any
+type envelope map[string]any
 
 // readIDParam retrieve the "id" URL parameter from the provided request context,
 // then convert it into an integer and return it.

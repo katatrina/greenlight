@@ -8,7 +8,7 @@ import (
 
 // healthcheckHandler show application information.
 func (app *application) healthcheckHandler(ctx *gin.Context) {
-	rsp := envelop{
+	rsp := envelope{
 		"status": "available",
 		"system_info": map[string]string{
 			"environment": app.config.env,

@@ -22,7 +22,7 @@ func (app *application) logError(ctx *gin.Context, err error) {
 // errorResponse is a generic helper for sending JSON-formatted error
 // messages to the client with a given status code.
 func (app *application) errorResponse(ctx *gin.Context, statusCode int, message any) {
-	rsp := envelop{"error": message}
+	rsp := envelope{"error": message}
 
 	app.writeJSON(ctx, statusCode, rsp, nil)
 }

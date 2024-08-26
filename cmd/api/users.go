@@ -94,7 +94,11 @@ func (app *application) registerUserHandler(ctx *gin.Context) {
 	}
 
 	// After the user record has been created in the database, generate a new activation token for the user.
-	tokenPlaintext, _, err := app.store.GenerateToken(ctx, user.ID, 3*24*time.Hour, db.ScopeActivation)
+	tokenPlaintext, _, err := app.store.GenerateToken(ctx, db.GenerateTokenParams{
+		UserID:   user.ID,
+		Duration: 3 * 24 * time.Hour,
+		Scope:    db.ScopeActivation,
+	})
 	if err != nil {
 		app.serverErrorResponse(ctx, err)
 		return
@@ -112,7 +116,7 @@ func (app *application) registerUserHandler(ctx *gin.Context) {
 		}
 	})
 
-	rsp := envelop{"user": user}
+	rsp := envelope{"user": user}
 	// 202 Accepted status code indicates that the request has been accepted for processing, but
 	// the processing has not been completed.
 	app.writeJSON(ctx, http.StatusAccepted, rsp, nil)
@@ -197,6 +201,6 @@ func (app *application) activateUserHandler(ctx *gin.Context) {
 	// TODO: Maybe using an atomic transaction for all above queries could be better.
 
 	// Send the activated user details to the client in a JSON response.
-	rsp := envelop{"user": activatedUser}
+	rsp := envelope{"user": activatedUser}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }

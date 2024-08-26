@@ -75,7 +75,7 @@ func (app *application) createMovieHandler(ctx *gin.Context) {
 	headers := make(map[string]string)
 	headers["Location"] = "/v1/movies/" + strconv.FormatInt(movie.ID, 10)
 
-	rsp := envelop{"movie": movie}
+	rsp := envelope{"movie": movie}
 	app.writeJSON(ctx, http.StatusCreated, rsp, headers)
 }
 
@@ -99,7 +99,7 @@ func (app *application) showMovieHandler(ctx *gin.Context) {
 		return
 	}
 
-	rsp := envelop{"movie": movie}
+	rsp := envelope{"movie": movie}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
 
@@ -204,7 +204,7 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 		return
 	}
 
-	rsp := envelop{"updated_movie": updatedMovie}
+	rsp := envelope{"updated_movie": updatedMovie}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
 
@@ -228,7 +228,7 @@ func (app *application) deleteMovieHandler(ctx *gin.Context) {
 		return
 	}
 
-	rsp := envelop{"message": "movie successfully deleted!"}
+	rsp := envelope{"message": "movie successfully deleted!"}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
 

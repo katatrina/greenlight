@@ -11,9 +11,16 @@ import (
 const (
 	ScopeActivation     = "activation"
 	ScopeAuthentication = "authentication"
+	ScopePasswordReset  = "password-reset"
 )
 
-func (store *SQLStore) GenerateToken(ctx context.Context, userID int64, duration time.Duration, scope string) (tokenPlaintext string, token Token, err error) {
+type GenerateTokenParams struct {
+	UserID   int64
+	Duration time.Duration
+	Scope    string
+}
+
+func (store *SQLStore) GenerateToken(ctx context.Context, arg GenerateTokenParams) (tokenPlaintext string, token Token, err error) {
 	randomBytes := make([]byte, 16)
 
 	_, err = rand.Read(randomBytes)
@@ -37,14 +44,12 @@ func (store *SQLStore) GenerateToken(ctx context.Context, userID int64, duration
 	// work with we convert it to a slice using the [:] operator before storing it.
 	hash := sha256.Sum256([]byte(tokenPlaintext))
 
-	arg := CreateTokenParams{
+	token, err = store.CreateToken(ctx, CreateTokenParams{
 		Hash:      hash[:],
-		UserID:    userID,
-		ExpiresAt: time.Now().Add(duration),
-		Scope:     scope,
-	}
-
-	token, err = store.CreateToken(ctx, arg)
+		UserID:    arg.UserID,
+		ExpiresAt: time.Now().Add(arg.Duration),
+		Scope:     arg.Scope,
+	})
 	if err != nil {
 		return "", token, err
 	}

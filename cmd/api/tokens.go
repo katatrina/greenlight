@@ -77,17 +77,95 @@ func (app *application) createAuthenticationTokenHandler(ctx *gin.Context) {
 
 	// If the password is correct, we generate a new stateful authentication token
 	// with a 24-hour expiry time with the scope 'authentication'.
-	tokenPlaintext, token, err := app.store.GenerateToken(ctx, user.ID, 24*time.Hour, db.ScopeAuthentication)
+	tokenPlaintext, token, err := app.store.GenerateToken(ctx, db.GenerateTokenParams{
+		UserID:   user.ID,
+		Duration: 24 * time.Hour,
+		Scope:    db.ScopeAuthentication,
+	})
 	if err != nil {
 		app.serverErrorResponse(ctx, err)
 		return
 	}
 
-	rsp := envelop{
+	rsp := envelope{
 		"authentication_token": createAuthenticationTokenResponse{
 			TokenPlaintext: tokenPlaintext,
 			ExpiredAt:      token.ExpiresAt,
 		},
 	}
 	app.writeJSON(ctx, http.StatusCreated, rsp, nil)
+}
+
+type createPasswordResetTokenRequest struct {
+	Email *string `json:"email"`
+}
+
+func validateCreatePasswordResetTokenRequest(req *createPasswordResetTokenRequest) validator.Violations {
+	violations := validator.New()
+
+	if req.Email == nil {
+		violations.AddError("email", "must be provided")
+	} else if err := validator.ValidateUserEmail(*req.Email); err != nil {
+		violations.AddError("email", err.Error())
+	}
+
+	return violations
+}
+
+// createPasswordResetTokenHandler generates a new password reset token.
+func (app *application) createPasswordResetTokenHandler(ctx *gin.Context) {
+	var req createPasswordResetTokenRequest
+
+	if err := app.readJSON(ctx, &req); err != nil {
+		app.badRequestResponse(ctx, err)
+		return
+	}
+
+	violations := validateCreatePasswordResetTokenRequest(&req)
+	if !violations.Empty() {
+		app.failedValidationResponse(ctx, violations)
+		return
+	}
+
+	user, err := app.store.GetUserByEmail(ctx, *req.Email)
+	if err != nil {
+		if errors.Is(err, db.ErrRecordNotFound) {
+			violations.AddError("email", "no matching email address")
+			app.failedValidationResponse(ctx, violations)
+			return
+		}
+
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	if !user.Activated {
+		violations.AddError("email", "user account must be activated")
+		app.failedValidationResponse(ctx, violations)
+		return
+	}
+
+	tokenPlaintext, _, err := app.store.GenerateToken(ctx, db.GenerateTokenParams{
+		UserID:   user.ID,
+		Duration: 45 * time.Minute,
+		Scope:    db.ScopePasswordReset,
+	})
+	if err != nil {
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	app.background(func() {
+		data := map[string]any{
+			"passwordResetToken": tokenPlaintext,
+		}
+
+		err = app.mailer.SendEmail("Change Greenlight password", data, []string{user.Email}, nil, nil, nil, "token_password_rest.html")
+		if err != nil {
+			app.logger.Error(err.Error())
+		}
+	})
+
+	rsp := envelope{"message": "an email will be sent to you containing password reset instructions"}
+	app.writeJSON(ctx, http.StatusAccepted, rsp, nil)
 }
