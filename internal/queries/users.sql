@@ -20,4 +20,12 @@ FROM users
     INNER JOIN tokens ON users.id = tokens.user_id
 WHERE tokens.hash = $1
     AND tokens.scope = $2
-    AND tokens.expired_at > now();
+    AND tokens.expires_at > now();
+
+-- name: UpdateUserPassword :exec
+UPDATE users
+SET 
+    hashed_password = sqlc.arg(hashed_password),
+    version = version + 1
+WHERE id = sqlc.arg(user_id) AND version = sqlc.arg(version)
+RETURNING *;

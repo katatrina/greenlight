@@ -96,7 +96,7 @@ FROM users
     INNER JOIN tokens ON users.id = tokens.user_id
 WHERE tokens.hash = $1
     AND tokens.scope = $2
-    AND tokens.expired_at > now()
+    AND tokens.expires_at > now()
 `
 
 type GetUserByTokenParams struct {
@@ -117,4 +117,24 @@ func (q *Queries) GetUserByToken(ctx context.Context, arg GetUserByTokenParams) 
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users
+SET 
+    hashed_password = $1,
+    version = version + 1
+WHERE id = $2 AND version = $3
+RETURNING id, name, email, hashed_password, activated, version, created_at
+`
+
+type UpdateUserPasswordParams struct {
+	HashedPassword []byte `json:"-"`
+	UserID         int64  `json:"user_id"`
+	Version        int32  `json:"-"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, updateUserPassword, arg.HashedPassword, arg.UserID, arg.Version)
+	return err
 }

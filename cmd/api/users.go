@@ -204,3 +204,92 @@ func (app *application) activateUserHandler(ctx *gin.Context) {
 	rsp := envelope{"user": activatedUser}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
+
+type updateUserPasswordRequest struct {
+	TokenPlaintext *string `json:"token"`
+	NewPassword    *string `json:"password"`
+}
+
+func validateUpdateUserPasswordRequest(req *updateUserPasswordRequest) validator.Violations {
+	violations := validator.New()
+
+	if req.TokenPlaintext == nil {
+		violations.AddError("token", "must be provided")
+	} else if err := validator.ValidateTokenPlaintext(*req.TokenPlaintext); err != nil {
+		violations.AddError("token", err.Error())
+	}
+
+	if req.NewPassword == nil {
+		violations.AddError("password", "must be provided")
+	} else if err := validator.ValidateUserPasswordPlaintext(*req.NewPassword); err != nil {
+		violations.AddError("password", err.Error())
+	}
+
+	return violations
+}
+
+func (app *application) updateUserPasswordHandler(ctx *gin.Context) {
+	var req updateUserPasswordRequest
+
+	if err := app.readJSON(ctx, &req); err != nil {
+		app.badRequestResponse(ctx, err)
+		return
+	}
+
+	violations := validateUpdateUserPasswordRequest(&req)
+	if !violations.Empty() {
+		app.failedValidationResponse(ctx, violations)
+		return
+	}
+
+	tokenHash := sha256.Sum256([]byte(*req.TokenPlaintext))
+
+	user, err := app.store.GetUserByToken(ctx, db.GetUserByTokenParams{
+		Hash:  tokenHash[:],
+		Scope: db.ScopePasswordReset,
+	})
+	if err != nil {
+		if errors.Is(err, db.ErrRecordNotFound) {
+			violations.AddError("token", "invalid or expired password reset token")
+			app.failedValidationResponse(ctx, violations)
+			return
+		}
+
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	hashedPassword, err := util.HashPassword(*req.NewPassword)
+	if err != nil {
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	err = app.store.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{
+		UserID:         user.ID,
+		HashedPassword: hashedPassword,
+		Version:        user.Version,
+	})
+	if err != nil {
+		if errors.Is(err, db.ErrRecordNotFound) {
+			app.editConflictResponse(ctx)
+			return
+		}
+
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	// If everything was successful, then delete all password reset tokens for the user.
+	err = app.store.DeleteUserTokens(ctx, db.DeleteUserTokensParams{
+		UserID: user.ID,
+		Scope:  db.ScopePasswordReset,
+	})
+	if err != nil {
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	rsp := envelope{"message": "your password was successfully reset"}
+	app.writeJSON(ctx, http.StatusOK, rsp, nil)
+}

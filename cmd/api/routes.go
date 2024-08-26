@@ -35,7 +35,7 @@ func (app *application) routes() http.Handler {
 	{
 		userRoutes.POST("", app.registerUserHandler)
 		userRoutes.PUT("/activated", app.activateUserHandler)
-		// userRoutes.PUT("/password", app.updateUserPasswordHandler)
+		userRoutes.PUT("/password", app.updateUserPasswordHandler)
 	}
 
 	tokenRoutes := router.Group("/v1/tokens")

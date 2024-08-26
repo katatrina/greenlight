@@ -22,6 +22,7 @@ type Querier interface {
 	GetUserPermissions(ctx context.Context, id int64) ([]string, error)
 	ListMoviesWithFilters(ctx context.Context, arg ListMoviesWithFiltersParams) ([]ListMoviesWithFiltersRow, error)
 	UpdateMovie(ctx context.Context, arg UpdateMovieParams) (Movie, error)
+	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }
 
 var _ Querier = (*Queries)(nil)
