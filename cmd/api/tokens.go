@@ -160,12 +160,85 @@ func (app *application) createPasswordResetTokenHandler(ctx *gin.Context) {
 			"passwordResetToken": tokenPlaintext,
 		}
 
-		err = app.mailer.SendEmail("Change Greenlight password", data, []string{user.Email}, nil, nil, nil, "token_password_rest.html")
+		err := app.mailer.SendEmail("Change Greenlight password", data, []string{user.Email}, nil, nil, nil, "token_password_rest.html")
 		if err != nil {
 			app.logger.Error(err.Error())
 		}
 	})
 
 	rsp := envelope{"message": "an email will be sent to you containing password reset instructions"}
+	app.writeJSON(ctx, http.StatusAccepted, rsp, nil)
+}
+
+type createActivationTokenRequest struct {
+	Email *string `json:"email"`
+}
+
+func validateCreateActivationTokenRequest(req *createActivationTokenRequest) validator.Violations {
+	violations := validator.New()
+
+	if req.Email == nil {
+		violations.AddError("email", "must be provided")
+	} else if err := validator.ValidateUserEmail(*req.Email); err != nil {
+		violations.AddError("email", err.Error())
+	}
+
+	return violations
+}
+
+func (app *application) createActivationTokenHandler(ctx *gin.Context) {
+	var req createActivationTokenRequest
+
+	if err := app.readJSON(ctx, &req); err != nil {
+		app.badRequestResponse(ctx, err)
+		return
+	}
+
+	violations := validateCreateActivationTokenRequest(&req)
+	if !violations.Empty() {
+		app.failedValidationResponse(ctx, violations)
+		return
+	}
+
+	user, err := app.store.GetUserByEmail(ctx, *req.Email)
+	if err != nil {
+		if errors.Is(err, db.ErrRecordNotFound) {
+			violations.AddError("email", "no matching email address found")
+			app.failedValidationResponse(ctx, violations)
+			return
+		}
+
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	if user.Activated {
+		violations.AddError("email", "user has already been activated")
+		app.failedValidationResponse(ctx, violations)
+		return
+	}
+
+	tokenPlaintext, _, err := app.store.GenerateToken(ctx, db.GenerateTokenParams{
+		UserID:   user.ID,
+		Duration: 3 * 24 * time.Hour,
+		Scope:    db.ScopeActivation,
+	})
+	if err != nil {
+		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	app.background(func() {
+		data := map[string]string{
+			"activationToken": tokenPlaintext,
+		}
+
+		err := app.mailer.SendEmail("Activate your Greenlight account", data, []string{user.Email}, nil, nil, nil, "token_activation.html")
+		if err != nil {
+			app.logger.Error(err.Error())
+		}
+	})
+
+	rsp := envelope{"message": "an email will be sent to you containing activation instructions"}
 	app.writeJSON(ctx, http.StatusAccepted, rsp, nil)
 }

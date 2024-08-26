@@ -42,6 +42,8 @@ func (app *application) routes() http.Handler {
 	{
 		tokenRoutes.POST("/authentication", app.createAuthenticationTokenHandler) // login
 
+		tokenRoutes.POST("activation", app.requireAuthenticatedUser(), app.createActivationTokenHandler)
+
 		tokenRoutes.POST("/password-reset", app.createPasswordResetTokenHandler)
 	}
 

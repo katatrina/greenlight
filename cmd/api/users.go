@@ -110,7 +110,7 @@ func (app *application) registerUserHandler(ctx *gin.Context) {
 			"userID":          user.ID,
 		}
 
-		err = app.mailer.SendEmail("Welcome <3!!!", data, []string{user.Email}, nil, nil, nil, "user_welcome.html")
+		err := app.mailer.SendEmail("Welcome <3!!!", data, []string{user.Email}, nil, nil, nil, "user_welcome.html")
 		if err != nil {
 			app.logger.Error(err.Error())
 		}
@@ -169,6 +169,12 @@ func (app *application) activateUserHandler(ctx *gin.Context) {
 		}
 
 		app.serverErrorResponse(ctx, err)
+		return
+	}
+
+	if user.Activated {
+		violations.AddError("email", "user has already been activated")
+		app.failedValidationResponse(ctx, violations)
 		return
 	}
 
