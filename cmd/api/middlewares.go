@@ -94,6 +94,7 @@ func (app *application) requireActivatedUser() gin.HandlerFunc {
 			return
 		}
 
+		// Otherwise they have an activated account, so we call the next handler in the chain.
 		ctx.Next()
 	}
 }
@@ -111,6 +112,7 @@ func (app *application) requireAuthenticatedUser() gin.HandlerFunc {
 			return
 		}
 
+		// Otherwise they are authenticated, so we call the next handler in the chain.
 		ctx.Next()
 	}
 }

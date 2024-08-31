@@ -26,10 +26,8 @@ type config struct {
 		dsn string
 	}
 	smtp struct {
-		username    string
-		password    string
-		senderName  string
-		senderEmail string
+		username string
+		password string
 	}
 }
 
@@ -51,8 +49,6 @@ func main() {
 
 	flag.StringVar(&cfg.smtp.username, "mailtrap-smtp-username", os.Getenv("MAILTRAP_SMTP_USERNAME"), "Mailtrap SMTP username")
 	flag.StringVar(&cfg.smtp.password, "mailtrap-smtp-password", os.Getenv("MAILTRAP_SMTP_PASSWORD"), "Mailtrap SMTP password")
-	flag.StringVar(&cfg.smtp.senderName, "smtp-sender-name", "Greenlight", "SMTP sender name")
-	flag.StringVar(&cfg.smtp.senderEmail, "smtp-sender-email", "no-reply@greenlight.katatrina.net", "SMTP sender email address")
 
 	flag.Parse()
 
@@ -70,11 +66,16 @@ func main() {
 
 	store := db.NewStore(connPool)
 
+	mailer, err := mailer.NewMailtrapSender(cfg.smtp.username, cfg.smtp.password)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	app := application{
 		config: cfg,
 		logger: logger,
 		store:  store,
-		mailer: mailer.NewMailtrapSender(cfg.smtp.username, cfg.smtp.password, cfg.smtp.senderName, cfg.smtp.senderEmail),
+		mailer: mailer,
 	}
 
 	// Declare a HTTP server which listens on the port provided in the config struct,
@@ -109,6 +110,7 @@ func openDB(cfg config) (*pgxpool.Pool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Ping the database to check if the connection is working.
 	err = connPool.Ping(ctx)
 	if err != nil {
 		defer connPool.Close()

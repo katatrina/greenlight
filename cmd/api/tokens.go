@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/katatrina/greenlight/internal/db"
+	"github.com/katatrina/greenlight/internal/mailer"
 	"github.com/katatrina/greenlight/internal/util"
 	"github.com/katatrina/greenlight/internal/validator"
 )
@@ -18,7 +19,7 @@ type createAuthenticationTokenRequest struct {
 
 type createAuthenticationTokenResponse struct {
 	TokenPlaintext string    `json:"token"`
-	ExpiredAt      time.Time `json:"expired_at"`
+	ExpiresAt      time.Time `json:"expires_at"`
 }
 
 func validateCreateAuthenticationTokenRequest(req *createAuthenticationTokenRequest) validator.Violations {
@@ -45,11 +46,13 @@ func validateCreateAuthenticationTokenRequest(req *createAuthenticationTokenRequ
 func (app *application) createAuthenticationTokenHandler(ctx *gin.Context) {
 	var req createAuthenticationTokenRequest
 
+	// Parse request body
 	if err := app.readJSON(ctx, &req); err != nil {
 		app.badRequestResponse(ctx, err)
 		return
 	}
 
+	// Validate request body
 	violations := validateCreateAuthenticationTokenRequest(&req)
 	if !violations.Empty() {
 		app.failedValidationResponse(ctx, violations)
@@ -90,7 +93,7 @@ func (app *application) createAuthenticationTokenHandler(ctx *gin.Context) {
 	rsp := envelope{
 		"authentication_token": createAuthenticationTokenResponse{
 			TokenPlaintext: tokenPlaintext,
-			ExpiredAt:      token.ExpiresAt,
+			ExpiresAt:      token.ExpiresAt,
 		},
 	}
 	app.writeJSON(ctx, http.StatusCreated, rsp, nil)
@@ -116,21 +119,24 @@ func validateCreatePasswordResetTokenRequest(req *createPasswordResetTokenReques
 func (app *application) createPasswordResetTokenHandler(ctx *gin.Context) {
 	var req createPasswordResetTokenRequest
 
+	// Parse request body
 	if err := app.readJSON(ctx, &req); err != nil {
 		app.badRequestResponse(ctx, err)
 		return
 	}
 
+	// Validate request body
 	violations := validateCreatePasswordResetTokenRequest(&req)
 	if !violations.Empty() {
 		app.failedValidationResponse(ctx, violations)
 		return
 	}
 
+	// Try to retrieve the corresponding user record for the email address.
 	user, err := app.store.GetUserByEmail(ctx, *req.Email)
 	if err != nil {
 		if errors.Is(err, db.ErrRecordNotFound) {
-			violations.AddError("email", "no matching email address")
+			violations.AddError("email", "no matching email address found")
 			app.failedValidationResponse(ctx, violations)
 			return
 		}
@@ -139,12 +145,14 @@ func (app *application) createPasswordResetTokenHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Return an error if the user account has not been activated yet.
 	if !user.Activated {
 		violations.AddError("email", "user account must be activated")
 		app.failedValidationResponse(ctx, violations)
 		return
 	}
 
+	// Otherwise, create a new password reset token with a 45-minute expiry time.
 	tokenPlaintext, _, err := app.store.GenerateToken(ctx, db.GenerateTokenParams{
 		UserID:   user.ID,
 		Duration: 45 * time.Minute,
@@ -155,17 +163,24 @@ func (app *application) createPasswordResetTokenHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Send an email to the user with the password reset token.
 	app.background(func() {
+		header := mailer.EmailHeader{
+			Subject: "Reset your Greenlight password",
+			To:      []string{user.Email},
+		}
+
 		data := map[string]any{
 			"passwordResetToken": tokenPlaintext,
 		}
 
-		err := app.mailer.SendEmail("Change Greenlight password", data, []string{user.Email}, nil, nil, nil, "token_password_rest.html")
+		err := app.mailer.SendEmail(header, data, "token_password_rest.html")
 		if err != nil {
 			app.logger.Error(err.Error())
 		}
 	})
 
+	// Send a 202 Accepted response and confirmation message to the client.
 	rsp := envelope{"message": "an email will be sent to you containing password reset instructions"}
 	app.writeJSON(ctx, http.StatusAccepted, rsp, nil)
 }
@@ -186,20 +201,24 @@ func validateCreateActivationTokenRequest(req *createActivationTokenRequest) val
 	return violations
 }
 
+// createActivationTokenHandler generates a new activation token for user.
 func (app *application) createActivationTokenHandler(ctx *gin.Context) {
 	var req createActivationTokenRequest
 
+	// Parse the request body
 	if err := app.readJSON(ctx, &req); err != nil {
 		app.badRequestResponse(ctx, err)
 		return
 	}
 
+	// Validate request body
 	violations := validateCreateActivationTokenRequest(&req)
 	if !violations.Empty() {
 		app.failedValidationResponse(ctx, violations)
 		return
 	}
 
+	// Try to retrieve the corresponding user record for the email address.
 	user, err := app.store.GetUserByEmail(ctx, *req.Email)
 	if err != nil {
 		if errors.Is(err, db.ErrRecordNotFound) {
@@ -212,12 +231,14 @@ func (app *application) createActivationTokenHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Return an error if the user has already been activated.
 	if user.Activated {
 		violations.AddError("email", "user has already been activated")
 		app.failedValidationResponse(ctx, violations)
 		return
 	}
 
+	// Otherwise, create a new activation token with a 3-day expiry time.
 	tokenPlaintext, _, err := app.store.GenerateToken(ctx, db.GenerateTokenParams{
 		UserID:   user.ID,
 		Duration: 3 * 24 * time.Hour,
@@ -228,17 +249,24 @@ func (app *application) createActivationTokenHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Send an email to the user with the activation token.
 	app.background(func() {
+		header := mailer.EmailHeader{
+			Subject: "Activate your Greenlight account",
+			To:      []string{user.Email},
+		}
+
 		data := map[string]string{
 			"activationToken": tokenPlaintext,
 		}
 
-		err := app.mailer.SendEmail("Activate your Greenlight account", data, []string{user.Email}, nil, nil, nil, "token_activation.html")
+		err := app.mailer.SendEmail(header, data, "token_activation.html")
 		if err != nil {
 			app.logger.Error(err.Error())
 		}
 	})
 
+	// Send a 202 Accepted response and confirmation message to the client.
 	rsp := envelope{"message": "an email will be sent to you containing activation instructions"}
 	app.writeJSON(ctx, http.StatusAccepted, rsp, nil)
 }

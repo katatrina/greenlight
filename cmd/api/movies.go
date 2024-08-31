@@ -47,18 +47,21 @@ func validateCreateMovieRequest(req *createMovieRequest) validator.Violations {
 func (app *application) createMovieHandler(ctx *gin.Context) {
 	var req createMovieRequest
 
+	// Parse the request body.
 	err := app.readJSON(ctx, &req)
 	if err != nil {
 		app.badRequestResponse(ctx, err)
 		return
 	}
 
+	// Validate the request body.
 	violations := validateCreateMovieRequest(&req)
 	if !violations.Empty() {
 		app.failedValidationResponse(ctx, violations)
 		return
 	}
 
+	// Create a new movie record in the database.
 	movie, err := app.store.CreateMovie(ctx, db.CreateMovieParams{
 		Title:       req.Title,
 		PublishYear: req.PublishYear,
@@ -88,6 +91,7 @@ func (app *application) showMovieHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Retrieve the movie record based on the provided ID.
 	movie, err := app.store.GetMovie(ctx, movieID)
 	if err != nil {
 		if errors.Is(err, db.ErrRecordNotFound) {
@@ -142,12 +146,14 @@ func validateUpdateMovieRequest(req *updateMovieRequest) validator.Violations {
 
 // updateMovieHandler update the details of a specific movie.
 func (app *application) updateMovieHandler(ctx *gin.Context) {
+	// Read the movie ID from the URL parameter.
 	movieID, err := app.readIDParam(ctx)
 	if err != nil {
 		app.notFoundResponse(ctx)
 		return
 	}
 
+	// Retrieve the existing movie record from the database.
 	movie, err := app.store.GetMovie(ctx, movieID)
 	if err != nil {
 		if errors.Is(err, db.ErrRecordNotFound) {
@@ -161,12 +167,14 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 
 	var req updateMovieRequest
 
+	// Parse the request body.
 	err = app.readJSON(ctx, &req)
 	if err != nil {
 		app.badRequestResponse(ctx, err)
 		return
 	}
 
+	// Validate the request body.
 	violations := validateUpdateMovieRequest(&req)
 	if !violations.Empty() {
 		app.failedValidationResponse(ctx, violations)
@@ -191,6 +199,7 @@ func (app *application) updateMovieHandler(ctx *gin.Context) {
 		Version: movie.Version,
 	}
 
+	// Try to update the movie.
 	updatedMovie, err := app.store.UpdateMovie(ctx, arg)
 	if err != nil {
 		// If no matching row could be found, we know the movie's version has changed
@@ -216,6 +225,7 @@ func (app *application) deleteMovieHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Attempt to delete the movie.
 	rowsAffected, err := app.store.DeleteMovie(ctx, movieID)
 	if err != nil {
 		app.serverErrorResponse(ctx, err)
@@ -245,7 +255,7 @@ type listMoviesResponse struct {
 	Movies   []db.Movie            `json:"movies"`
 }
 
-func newListMoviesResponse(row db.ListMoviesWithFiltersRow) db.Movie {
+func newListMoviesWithFiltersRowResponse(row db.ListMoviesWithFiltersRow) db.Movie {
 	return db.Movie{
 		ID:          row.Movie.ID,
 		Title:       row.Movie.Title,
@@ -260,8 +270,6 @@ func newListMoviesResponse(row db.ListMoviesWithFiltersRow) db.Movie {
 // validateListMoviesRequest validates the listMoviesRequest struct and sets default "fallback" values if necessary.
 func validateListMoviesRequest(req *listMoviesRequest) validator.Violations {
 	violations := validator.New()
-
-	// TODO: Think about a better solution to handle this.
 
 	// If the genres field is not provided, set it to an empty slice.
 	if req.Genres == nil {
@@ -305,12 +313,14 @@ func validateListMoviesRequest(req *listMoviesRequest) validator.Violations {
 func (app *application) listMoviesHandler(ctx *gin.Context) {
 	var req listMoviesRequest
 
+	// Parse query parameters
 	err := app.readQueryParams(ctx, &req)
 	if err != nil {
 		app.badRequestResponse(ctx, err)
 		return
 	}
 
+	// Validate query parameters
 	violations := validateListMoviesRequest(&req)
 	if !violations.Empty() {
 		app.failedValidationResponse(ctx, violations)
@@ -326,6 +336,7 @@ func (app *application) listMoviesHandler(ctx *gin.Context) {
 		Offset:  (*req.Page - 1) * *req.PageSize,
 	}
 
+	// Retrieve the list of movies based on the provided filters.
 	movies, err := app.store.ListMoviesWithFilters(ctx, arg)
 	if err != nil {
 		app.serverErrorResponse(ctx, err)
@@ -344,7 +355,7 @@ func (app *application) listMoviesHandler(ctx *gin.Context) {
 		// We can use the "-" struct tag to exclude the field from the response.
 		// However, currently, sqlc does not support custom struct tags.
 		for _, v := range movies {
-			rsp.Movies = append(rsp.Movies, newListMoviesResponse(v))
+			rsp.Movies = append(rsp.Movies, newListMoviesWithFiltersRowResponse(v))
 		}
 	}
 

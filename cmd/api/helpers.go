@@ -38,19 +38,36 @@ func (app *application) writeJSON(ctx *gin.Context, statusCode int, data any, he
 // readJSON decode the request body into destination struct.
 // It asserts the body contains a valid JSON object, and returns an error if not.
 func (app *application) readJSON(ctx *gin.Context, destinaton any) error {
+	// Limit the size of our request body to 1MB.
 	maxBytes := 1_048_576
 	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, int64(maxBytes))
 
-	// TODO: Disallow unknown fields in body
-	// TODO: Differentiate between missing, null, and empty values
+	// TODO: Disallow unknown fields in body (currently not supported by GIN)
+	/* TODO: Differentiate between missing, null, and empty values
+	1. Use the binding:"required" struct tag for each field
+		=> error is returned by ShouldBindJSON
+		=> cannot custom error string (urly error string)
+		=> cannot catch multiple errors at once (multiple not-provided errors)
+		 => The clients have to sent another request to see remaining errors if have.
+		=> but can reduce boilerplate code
+	2. Use pointers for each data types. For example: string => *string, int64 => *int64, ...
+		=> introduce lots of boilerplate code
+		=> not idiomatic
+		=> but we completely controll over the validation process.
+	3. ...
+	*/
 
 	err := ctx.ShouldBindJSON(destinaton)
 	if err != nil {
 		var (
-			syntaxError           *json.SyntaxError
-			unmarshalTypeError    *json.UnmarshalTypeError
+			syntaxError        *json.SyntaxError        // There is a syntax problem with the JSON being decoded.
+			unmarshalTypeError *json.UnmarshalTypeError // A JSON value is not appropriate for the destination Go data type.
+			/*
+				The destination is not valid (it must be a non-nil pointer).
+				This is actually a problem with our application code, not the JSON itself.
+			*/
 			invalidUnmarshalError *json.InvalidUnmarshalError
-			maxBytesError         *http.MaxBytesError
+			maxBytesError         *http.MaxBytesError // The request body exceeded our size limit.
 		)
 
 		switch {
@@ -99,6 +116,7 @@ func (app *application) readQueryParams(ctx *gin.Context, destination any) error
 	return nil
 }
 
+// background runs the fn function in another goroutine.
 func (app *application) background(fn func()) {
 	go func() {
 		defer func() {

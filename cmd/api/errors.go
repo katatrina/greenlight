@@ -115,3 +115,10 @@ func (app *application) notPermittedResponse(ctx *gin.Context) {
 
 	app.errorResponse(ctx, http.StatusForbidden, message)
 }
+
+// mismatchedAuthenticatedUserEmailResponse sends 403 Forbidden status code and a generic error message to the client.
+func (app *application) mismatchedAuthenticatedUserEmailResponse(ctx *gin.Context) {
+	message := "the email provided does not match the authenticated user's email"
+
+	app.errorResponse(ctx, http.StatusForbidden, message)
+}

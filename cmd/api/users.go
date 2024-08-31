@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/katatrina/greenlight/internal/db"
+	"github.com/katatrina/greenlight/internal/mailer"
 	"github.com/katatrina/greenlight/internal/util"
 	"github.com/katatrina/greenlight/internal/validator"
 )
@@ -46,35 +47,41 @@ func validateRegisterUserRequest(req *registerUserRequest) validator.Violations 
 func (app *application) registerUserHandler(ctx *gin.Context) {
 	var req registerUserRequest
 
+	// Parse request body
 	err := app.readJSON(ctx, &req)
 	if err != nil {
 		app.badRequestResponse(ctx, err)
 		return
 	}
 
+	// Validate request body
 	violations := validateRegisterUserRequest(&req)
 	if !violations.Empty() {
 		app.failedValidationResponse(ctx, violations)
 		return
 	}
 
-	// TODO: If the email is already exists, the calculation of hashing password is unnecessary and can make the response slower.
+	// NOTE: If the email is already exists, the calculation of hashing password is unnecessary and can make the response slower.
+	// But querying the database to check if the email already exists before hashing the password is also not a good idea.
 
+	// Generate a hashed password from the plaintext password.
 	hashedPassword, err := util.HashPassword(*req.Password)
 	if err != nil {
 		app.serverErrorResponse(ctx, err)
 		return
 	}
 
-	arg := db.CreateUserParams{
+	arg := db.RegisterUserTxParams{
 		Name:           *req.Name,
 		Email:          *req.Email,
 		HashedPassword: hashedPassword,
-		Activated:      false,
+		Permissions:    []string{movieReadPermissionCode},
 	}
 
-	user, err := app.store.CreateUser(ctx, arg)
+	// Try to create a new user account with the default permissions.
+	user, err := app.store.RegisterUserTx(ctx, arg)
 	if err != nil {
+		// If the email address is already in use, return a 409 status code and a JSON response.
 		if db.ErrorCode(err) == db.UniqueViolation && db.IsContainErrorMessage(err, "users_email_key") {
 			app.integrityConstraintViolationResponse(ctx, "a user with this email address already exists")
 			return
@@ -84,16 +91,7 @@ func (app *application) registerUserHandler(ctx *gin.Context) {
 		return
 	}
 
-	err = app.store.AddPermissionsForUser(ctx, db.AddPermissionsForUserParams{
-		UserID:          user.ID,
-		PermissionCodes: []string{movieReadPermissionCode},
-	})
-	if err != nil {
-		app.serverErrorResponse(ctx, err)
-		return
-	}
-
-	// After the user record has been created in the database, generate a new activation token for the user.
+	// After the user record has been created, generate a new activation token for the user.
 	tokenPlaintext, _, err := app.store.GenerateToken(ctx, db.GenerateTokenParams{
 		UserID:   user.ID,
 		Duration: 3 * 24 * time.Hour,
@@ -104,13 +102,19 @@ func (app *application) registerUserHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Send the user a welcome email with the activation token.
 	app.background(func() {
-		data := map[string]any{
-			"activationToken": tokenPlaintext,
-			"userID":          user.ID,
+		header := mailer.EmailHeader{
+			Subject: "Welcome to Greenlight!",
+			To:      []string{user.Email},
 		}
 
-		err := app.mailer.SendEmail("Welcome <3!!!", data, []string{user.Email}, nil, nil, nil, "user_welcome.html")
+		data := map[string]any{
+			"userID":          user.ID,
+			"activationToken": tokenPlaintext,
+		}
+
+		err := app.mailer.SendEmail(header, data, "user_welcome.html")
 		if err != nil {
 			app.logger.Error(err.Error())
 		}
@@ -142,26 +146,30 @@ func validateActivateUserRequest(req *activateUserRequest) validator.Violations 
 func (app *application) activateUserHandler(ctx *gin.Context) {
 	var req activateUserRequest
 
+	// Parse request body
 	if err := app.readJSON(ctx, &req); err != nil {
 		app.badRequestResponse(ctx, err)
 		return
 	}
 
+	// Validate request body
 	violations := validateActivateUserRequest(&req)
 	if !violations.Empty() {
 		app.failedValidationResponse(ctx, violations)
 		return
 	}
 
+	// Generate a SHA-256 hash of the plaintext token string.
 	tokenHash := sha256.Sum256([]byte(*req.TokenPlainText))
 
-	// Retrieve the details of the user associated with the token.
+	// Retrieve the details of the user associated with the token hash.
 	// If no matching row is found, then we let the client know that the token they provided is not valid.
 	user, err := app.store.GetUserByToken(ctx, db.GetUserByTokenParams{
 		Hash:  tokenHash[:],
 		Scope: db.ScopeActivation,
 	})
 	if err != nil {
+		// If no matching row is found, then we let the client know that the token they provided is not valid.
 		if errors.Is(err, db.ErrRecordNotFound) {
 			violations.AddError("token", "invalid or expired activation token")
 			app.failedValidationResponse(ctx, violations)
@@ -172,13 +180,15 @@ func (app *application) activateUserHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Return an error if the user account has already been activated.
 	if user.Activated {
 		violations.AddError("email", "user has already been activated")
 		app.failedValidationResponse(ctx, violations)
 		return
 	}
 
-	activatedUser, err := app.store.ActivateUser(ctx, db.ActivateUserParams{
+	// Try to activate the user account.
+	activatedUser, err := app.store.ActivateUserTx(ctx, db.ActivateUserParams{
 		UserID:  user.ID,
 		Version: user.Version,
 	})
@@ -194,29 +204,17 @@ func (app *application) activateUserHandler(ctx *gin.Context) {
 		return
 	}
 
-	// If everything went successfully, then we delete all activation tokens of the user.
-	err = app.store.DeleteUserTokens(ctx, db.DeleteUserTokensParams{
-		UserID: activatedUser.ID,
-		Scope:  db.ScopeActivation,
-	})
-	if err != nil {
-		app.serverErrorResponse(ctx, err)
-		return
-	}
-
-	// TODO: Maybe using an atomic transaction for all above queries could be better.
-
 	// Send the activated user details to the client in a JSON response.
 	rsp := envelope{"user": activatedUser}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
 
-type updateUserPasswordRequest struct {
+type resetUserPasswordRequest struct {
 	TokenPlaintext *string `json:"token"`
 	NewPassword    *string `json:"password"`
 }
 
-func validateUpdateUserPasswordRequest(req *updateUserPasswordRequest) validator.Violations {
+func validateResetUserPasswordRequest(req *resetUserPasswordRequest) validator.Violations {
 	violations := validator.New()
 
 	if req.TokenPlaintext == nil {
@@ -234,27 +232,33 @@ func validateUpdateUserPasswordRequest(req *updateUserPasswordRequest) validator
 	return violations
 }
 
-func (app *application) updateUserPasswordHandler(ctx *gin.Context) {
-	var req updateUserPasswordRequest
+// resetUserPasswordHandler update the user's password.
+func (app *application) resetUserPasswordHandler(ctx *gin.Context) {
+	var req resetUserPasswordRequest
 
+	// Parse request body
 	if err := app.readJSON(ctx, &req); err != nil {
 		app.badRequestResponse(ctx, err)
 		return
 	}
 
-	violations := validateUpdateUserPasswordRequest(&req)
+	// Validate request body
+	violations := validateResetUserPasswordRequest(&req)
 	if !violations.Empty() {
 		app.failedValidationResponse(ctx, violations)
 		return
 	}
 
+	// Generate a SHA-256 hash of the plaintext token string.
 	tokenHash := sha256.Sum256([]byte(*req.TokenPlaintext))
 
+	// Retrieve the details of the user associated with the hashed token.
 	user, err := app.store.GetUserByToken(ctx, db.GetUserByTokenParams{
 		Hash:  tokenHash[:],
 		Scope: db.ScopePasswordReset,
 	})
 	if err != nil {
+		// If no matching row is found, then we let the client know that the token they provided is not valid.
 		if errors.Is(err, db.ErrRecordNotFound) {
 			violations.AddError("token", "invalid or expired password reset token")
 			app.failedValidationResponse(ctx, violations)
@@ -265,18 +269,22 @@ func (app *application) updateUserPasswordHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Generate a new hashed password from the input password.
 	hashedPassword, err := util.HashPassword(*req.NewPassword)
 	if err != nil {
 		app.serverErrorResponse(ctx, err)
 		return
 	}
 
-	err = app.store.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{
+	// Set the new hashed password for the user.
+	err = app.store.ResetUserPasswordTx(ctx, db.ResetUserPasswordTxParams{
 		UserID:         user.ID,
 		HashedPassword: hashedPassword,
 		Version:        user.Version,
 	})
 	if err != nil {
+		// If no matching row could be found, we know the user's version has changed
+		// (or the record has been deleted) and we invoke the editConflictResponse method.
 		if errors.Is(err, db.ErrRecordNotFound) {
 			app.editConflictResponse(ctx)
 			return
@@ -286,16 +294,7 @@ func (app *application) updateUserPasswordHandler(ctx *gin.Context) {
 		return
 	}
 
-	// If everything was successful, then delete all password reset tokens for the user.
-	err = app.store.DeleteUserTokens(ctx, db.DeleteUserTokensParams{
-		UserID: user.ID,
-		Scope:  db.ScopePasswordReset,
-	})
-	if err != nil {
-		app.serverErrorResponse(ctx, err)
-		return
-	}
-
+	// Send the client a 200 OK response with a success message.
 	rsp := envelope{"message": "your password was successfully reset"}
 	app.writeJSON(ctx, http.StatusOK, rsp, nil)
 }
